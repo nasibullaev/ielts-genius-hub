@@ -8,6 +8,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { User } from './schemas/user.schema';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class UsersService {
@@ -71,7 +73,21 @@ export class UsersService {
     return newUser.save();
   }
 
-  async updateUser(id: string, updateData: Partial<User>): Promise<User> {
+  async updateProfile(id: string, updateData: UpdateProfileDto): Promise<User> {
+    if (updateData.email || updateData.phone) {
+      const existingUser = await this.userModel.findOne({
+        _id: { $ne: id },
+        $or: [
+          ...(updateData.email ? [{ email: updateData.email }] : []),
+          ...(updateData.phone ? [{ phone: updateData.phone }] : []),
+        ],
+      });
+
+      if (existingUser) {
+        throw new ConflictException('Email or phone number already in use');
+      }
+    }
+
     const updatedUser = await this.userModel
       .findByIdAndUpdate(id, updateData, { new: true })
       .select('-password')
@@ -82,6 +98,37 @@ export class UsersService {
     }
 
     return updatedUser;
+  }
+
+  async changePassword(
+    id: string,
+    changePasswordDto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    const user = await this.userModel.findById(id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(
+      changePasswordDto.currentPassword,
+      user.password,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(
+      changePasswordDto.newPassword,
+      10,
+    );
+
+    // Update password
+    await this.userModel.findByIdAndUpdate(id, { password: hashedNewPassword });
+
+    return { message: 'Password changed successfully' };
   }
 
   async deleteUser(id: string): Promise<void> {
