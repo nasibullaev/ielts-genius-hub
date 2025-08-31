@@ -6,6 +6,11 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
+  app.enableCors({
+    origin: 'http://localhost:3000',
+    methods: 'GET,POST,PUT,DELETE',
+    credentials: true,
+  });
   const config = new DocumentBuilder()
     .setTitle('IELTS Genius Hub API')
     .setDescription('API for IELTS Preparation Web App')

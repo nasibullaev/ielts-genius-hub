@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CoursesModule } from './courses/courses.module';
 import { LessonsModule } from './lessons/lessons.module';
+import { LevelCheckerModule } from './level-checker/level-checker.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { LessonsModule } from './lessons/lessons.module';
     UsersModule,
     CoursesModule,
     LessonsModule,
+    LevelCheckerModule,
   ],
   controllers: [AppController],
   providers: [AppService],
