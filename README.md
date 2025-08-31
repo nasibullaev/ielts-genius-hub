@@ -77,7 +77,7 @@ A comprehensive NestJS backend API for an IELTS preparation platform with AI-pow
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/your-username/ielts-genius-hub.git
+git clone https://github.com/nasibullaev/ielts-genius-hub.git
 cd ielts-genius-hub
 ```
 
