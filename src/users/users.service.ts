@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -13,7 +14,10 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<User>,
+    private jwtService: JwtService,
+  ) {}
 
   async findByEmail(email: string) {
     return this.userModel.findOne({ email }).lean().exec();
@@ -103,7 +107,7 @@ export class UsersService {
   async changePassword(
     id: string,
     changePasswordDto: ChangePasswordDto,
-  ): Promise<{ message: string }> {
+  ): Promise<{ message: string; access_token: string }> {
     const user = await this.userModel.findById(id);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -127,8 +131,14 @@ export class UsersService {
 
     // Update password
     await this.userModel.findByIdAndUpdate(id, { password: hashedNewPassword });
+    // Generate new token after password change
+    const payload = { sub: user._id, role: user.role };
+    const newAccessToken = this.jwtService.sign(payload);
 
-    return { message: 'Password changed successfully' };
+    return {
+      message: 'Password changed successfully',
+      access_token: newAccessToken, // ✅ New token
+    };
   }
 
   async deleteUser(id: string): Promise<void> {
