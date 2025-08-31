@@ -1,98 +1,267 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# IELTS Genius Hub API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A comprehensive NestJS backend API for an IELTS preparation platform with AI-powered writing assessment, course management, and admin dashboard.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 🚀 Features
 
-## Description
+### 🔐 Authentication & Authorization
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- JWT-based authentication
+- Role-based access control (Student/Admin)
+- User registration and login with email/phone
+- Profile management with progress tracking
+- Password change with token refresh
 
-## Project setup
+### 📚 Course Management
+
+- Hierarchical course structure (Courses → Units → Sections → Lessons)
+- Multiple lesson types: Video, Text, Quiz, File
+- Course ratings and reviews
+- Progress tracking for each user
+- Image upload for course pictures
+
+### 🧪 Interactive Learning
+
+- **Video Lessons**: YouTube video integration
+- **Text Lessons**: Rich content delivery
+- **Quiz System**: Multiple choice questions with instant feedback
+- **File Lessons**: Document and resource sharing
+- Real-time progress calculation
+
+### ✍️ AI-Powered Writing Assessment
+
+- Topic generation using Google Gemini AI
+- Comprehensive essay evaluation based on IELTS criteria:
+  - Task Achievement
+  - Coherence & Cohesion
+  - Lexical Resource
+  - Grammatical Range & Accuracy
+- Detailed feedback and improvement suggestions
+- Word count and time tracking
+
+### 📊 Admin Dashboard
+
+- User analytics (total, monthly active, daily active users)
+- Course performance metrics
+- Recent user activities monitoring
+- Essay submission tracking and detailed reviews
+- Complete course management (CRUD operations)
+
+### 💳 Payment System
+
+- Mock payment processing
+- Subscription management
+- Payment history tracking
+- Access control based on payment status
+
+## 🛠️ Tech Stack
+
+- **Framework**: NestJS (Node.js)
+- **Database**: MongoDB with Mongoose
+- **Authentication**: JWT with Passport
+- **AI Integration**: Google Gemini AI
+- **File Upload**: Multer
+- **Documentation**: Swagger
+- **Language**: TypeScript
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js (v16 or higher)
+- MongoDB
+- Google Gemini AI API Key
+
+### Installation
+
+1. **Clone the repository**
 
 ```bash
-$ npm install
+git clone https://github.com/your-username/ielts-genius-hub.git
+cd ielts-genius-hub
 ```
 
-## Compile and run the project
+2. **Install dependencies**
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
 ```
 
-## Run tests
+3. **Environment Setup**
+   Create a `.env` file in the root directory:
+
+```env
+# Database
+MONGO_URI=mongodb://localhost:27017/ielts-genius-hub
+
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key
+JWT_EXPIRES=24h
+
+# AI Integration
+GEMINI_API_KEY=your-gemini-api-key
+
+# Server
+PORT=3000
+```
+
+4. **Create upload directories**
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+mkdir uploads
+mkdir uploads/courses
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+5. **Start the development server**
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+The API will be available at `http://localhost:3000`
+Swagger documentation: `http://localhost:3000/api`
 
-## Resources
+## 📖 API Documentation
 
-Check out a few resources that may come in handy when working with NestJS:
+### Authentication Endpoints
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```
+POST /auth/register        # User registration
+POST /auth/login          # User login
+```
 
-## Support
+### User Management
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```
+GET    /users/profile             # Get current user profile
+PUT    /users/profile             # Update user profile
+PUT    /users/change-password     # Change password
+```
 
-## Stay in touch
+### Course Management
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```
+GET    /courses                   # Get all courses (public)
+GET    /courses/:id               # Get course details
+POST   /courses                   # Create course (Admin)
+PUT    /courses/:id               # Update course (Admin)
+DELETE /courses/:id               # Delete course (Admin)
+POST   /courses/:id/rate          # Rate a course
+```
 
-## License
+### Lesson Management
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```
+GET    /lessons/:id               # Get lesson content (Paid users)
+POST   /lessons/:id/complete      # Mark lesson as completed
+POST   /lessons/:id/quiz          # Submit quiz answers
+```
+
+### Writing Assessment
+
+```
+GET    /level-checker             # Get writing topic
+POST   /level-checker             # Submit essay for evaluation
+```
+
+### Payment System
+
+```
+POST   /payments/process          # Process payment (Mock)
+GET    /payments/history          # Get payment history
+```
+
+### Admin Dashboard
+
+```
+GET    /admin/dashboard                    # Dashboard statistics
+GET    /admin/essay-submissions           # Recent essay submissions
+GET    /admin/essay-submissions/:id       # Detailed essay review
+```
+
+## 🔑 Authentication
+
+All protected endpoints require a Bearer token in the Authorization header:
+
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+### User Roles
+
+- **Student**: Access to courses, lessons, writing checker (with payment)
+- **Admin**: Full access to all endpoints plus admin dashboard
+
+## 💳 Payment Flow
+
+1. **User Registration/Login**: Get access token
+2. **Browse Courses**: View course catalog (free)
+3. **Payment**: Use mock payment with any card details
+4. **Access Content**: Unlock lessons, quizzes, and writing checker
+5. **Progress Tracking**: Automatic progress and streak tracking
+
+## 🎯 Writing Assessment Flow
+
+1. **Get Topic**: `GET /level-checker` returns AI-generated IELTS topic
+2. **Write Essay**: User writes essay (minimum 150 words)
+3. **Submit for Evaluation**: `POST /level-checker` with topic, essay, and time spent
+4. **Get Results**: Receive IELTS band scores with detailed feedback
+5. **Admin Review**: Admins can see all submissions and detailed evaluations
+
+## 📊 Admin Features
+
+### Dashboard Analytics
+
+- Total registered users
+- Monthly and daily active users
+- Recent user activities
+- Course performance metrics
+- Essay submission analytics
+
+### Course Management
+
+- Create/edit/delete courses with image upload
+- Manage course structure (units, sections, lessons)
+- View course ratings and reviews
+
+### User Monitoring
+
+- Track user progress across courses
+- Monitor essay submissions and scores
+- View detailed user activity logs
+
+## 🚀 Deployment
+
+### Production Build
+
+```bash
+npm run build
+npm run start:prod
+```
+
+### Environment Variables for Production
+
+```env
+NODE_ENV=production
+MONGO_URI=your-production-mongodb-uri
+JWT_SECRET=your-production-jwt-secret
+GEMINI_API_KEY=your-gemini-api-key
+PORT=3000
+```
+
+## 📝 Database Schema
+
+### Key Collections
+
+- **Users**: User profiles, payment status, streaks
+- **Courses**: Course information and metadata
+- **Units/Sections/Lessons**: Hierarchical course structure
+- **UserProgress**: Individual progress tracking
+- **UserActivity**: Activity logging for analytics
+- **LevelCheck**: Essay submissions and evaluations
+- **Payments**: Payment transaction records
+- **CourseRatings**: User ratings and reviews
+
+---
+
+**Built with ❤️ using NestJS and MongoDB**
