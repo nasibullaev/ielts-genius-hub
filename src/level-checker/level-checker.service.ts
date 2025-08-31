@@ -1,14 +1,20 @@
 // src/level-checker/level-checker.service.ts
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { LevelCheck } from './schemas/level-check.schema';
 
 @Injectable()
 export class LevelCheckerService {
   private genAI: GoogleGenerativeAI;
   private model: any;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    @InjectModel(LevelCheck.name) private levelCheckModel: Model<LevelCheck>,
+  ) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY is not defined in environment variables');
@@ -45,8 +51,10 @@ Return ONLY the topic question, nothing else.`;
   }
 
   async evaluateEssay(
+    userId: string,
     topic: string,
     essay: string,
+    timeSpent: number,
   ): Promise<{
     overallBand: string;
     taskAchievement: string;
@@ -55,9 +63,16 @@ Return ONLY the topic question, nothing else.`;
     grammaticalRange: string;
     feedback: string;
     suggestions: string[];
+    wordCount: number;
+    submissionId: string;
   }> {
     try {
+      // Count words
+      const wordCount = essay.trim().split(/\s+/).length;
+
       const prompt = `You are an experienced IELTS Writing examiner. Evaluate this IELTS Writing Task 2 essay based on the official IELTS band descriptors.
+
+Word count: ${wordCount} words
 
 Provide scores (1-9 band scale) for:
 1. Task Achievement (TR)
@@ -89,9 +104,32 @@ Return your response in this EXACT JSON format (no additional text):
       }
 
       try {
-        // Clean response - remove any markdown formatting
         const cleanResponse = response.replace(/```json\n?|\n?```/g, '').trim();
-        return JSON.parse(cleanResponse);
+        const evaluation = JSON.parse(cleanResponse);
+
+        // Save to database
+        const levelCheck = new this.levelCheckModel({
+          userId: new Types.ObjectId(userId),
+          topic,
+          essay,
+          overallBand: evaluation.overallBand,
+          taskAchievement: evaluation.taskAchievement,
+          coherenceCohesion: evaluation.coherenceCohesion,
+          lexicalResource: evaluation.lexicalResource,
+          grammaticalRange: evaluation.grammaticalRange,
+          feedback: evaluation.feedback,
+          suggestions: evaluation.suggestions,
+          wordCount,
+          timeSpent,
+        });
+
+        const savedSubmission = await levelCheck.save();
+
+        return {
+          ...evaluation,
+          wordCount,
+          submissionId: savedSubmission._id.toString(),
+        };
       } catch (parseError) {
         console.error('Failed to parse Gemini response:', response);
         throw new BadRequestException('Invalid response format from AI');
@@ -100,5 +138,33 @@ Return your response in this EXACT JSON format (no additional text):
       console.error('Gemini API Error:', error);
       throw new BadRequestException('Failed to evaluate essay');
     }
+  }
+
+  // For admin dashboard
+  async getRecentSubmissions(limit: number = 20) {
+    return this.levelCheckModel
+      .find()
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate('userId', 'name email')
+      .lean()
+      .exec();
+  }
+
+  async getSubmissionById(id: string) {
+    return this.levelCheckModel
+      .findById(id)
+      .populate('userId', 'name email phone')
+      .lean()
+      .exec();
+  }
+
+  async getUserSubmissions(userId: string) {
+    return this.levelCheckModel
+      .find({ userId })
+      .sort({ createdAt: -1 })
+      .select('-essay -feedback -suggestions') // Hide detailed content
+      .lean()
+      .exec();
   }
 }

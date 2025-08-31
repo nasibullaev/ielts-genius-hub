@@ -85,19 +85,16 @@ export class LevelCheckerController {
     return this.levelCheckerService.generateWritingTopic();
   }
 
+  // src/level-checker/level-checker.controller.ts - update the POST method:
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Submit essay for evaluation',
     description:
-      'Evaluates the submitted essay using ChatGPT and returns IELTS band scores with feedback',
+      'Evaluates the submitted essay using Gemini AI and saves the submission to database',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Essay evaluated successfully',
-    type: EvaluationResponseDto,
-  })
+  @ApiResponse({ status: 200, description: 'Essay evaluated successfully' })
   @ApiResponse({
     status: 400,
     description: 'Validation error or evaluation failed',
@@ -108,8 +105,10 @@ export class LevelCheckerController {
   })
   async submitEssay(@Request() req, @Body() submitEssayDto: SubmitEssayDto) {
     return this.levelCheckerService.evaluateEssay(
+      req.user.sub,
       submitEssayDto.topic,
       submitEssayDto.essay,
+      submitEssayDto.timeSpent,
     );
   }
 }

@@ -1,11 +1,17 @@
 // src/level-checker/dto/submit-essay.dto.ts
-import { IsString, IsNotEmpty, MinLength } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  MinLength,
+  IsNumber,
+  Min,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class SubmitEssayDto {
   @ApiProperty({
     example:
-      'Some people believe that universities should require every student to take a variety of courses outside their major field of study. Others believe that universities should not force students to take any courses other than those that will help prepare them for jobs in their chosen fields. Discuss both views and give your own opinion.',
+      'Some people believe that universities should require every student to take a variety of courses outside their major field of study...',
     description: 'The writing topic that was provided',
   })
   @IsString()
@@ -21,4 +27,12 @@ export class SubmitEssayDto {
   @IsNotEmpty()
   @MinLength(150, { message: 'Essay must be at least 150 words' })
   essay: string;
+
+  @ApiProperty({
+    example: 25,
+    description: 'Time spent writing the essay in minutes',
+  })
+  @IsNumber()
+  @Min(1)
+  timeSpent: number;
 }

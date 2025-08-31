@@ -1,4 +1,3 @@
-// src/users/schemas/user.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
@@ -24,6 +23,18 @@ export class User {
 
   @Prop({ default: 'student', enum: ['student', 'admin'] })
   role: string;
+
+  @Prop({ default: false })
+  isPaid: boolean; // ✅ Add payment status
+
+  @Prop()
+  subscriptionExpiry?: Date; // ✅ Add subscription expiry
+
+  @Prop({ default: 0 })
+  currentStreak: number; // ✅ Add streak tracking
+
+  @Prop()
+  lastActivityDate?: Date; // ✅ For streak calculation
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
