@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
+import { join } from 'path';
 
 @Controller()
 export class AppController {
@@ -8,5 +9,20 @@ export class AppController {
   @Get()
   getHello(): string {
     return this.appService.getHello();
+  }
+
+  @Get('test-static')
+  testStatic() {
+    const uploadsPath = join(process.cwd(), 'uploads');
+    const coursesPath = join(uploadsPath, 'courses');
+
+    return {
+      message: 'Static files test',
+      currentWorkingDir: process.cwd(),
+      uploadsPath,
+      coursesPath,
+      staticFilesUrl: '/uploads/courses/',
+      example: 'Try accessing: /uploads/courses/your-image-name.jpg',
+    };
   }
 }

@@ -118,11 +118,18 @@ export class CoursesService {
     createCourseDto: CreateCourseDto,
     pictureUrl: string,
   ): Promise<Course> {
+    console.log('Creating course with picture URL:', pictureUrl);
+    console.log('Current working directory:', process.cwd());
+
     const newCourse = new this.courseModel({
       ...createCourseDto,
       picture: pictureUrl,
     });
-    return newCourse.save();
+
+    const savedCourse = await newCourse.save();
+    console.log('Course saved with picture:', savedCourse.picture);
+
+    return savedCourse;
   }
 
   async update(

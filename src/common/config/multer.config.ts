@@ -1,10 +1,10 @@
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
 import { BadRequestException } from '@nestjs/common';
 
 export const multerConfig = {
   storage: diskStorage({
-    destination: './uploads/courses',
+    destination: join(process.cwd(), 'uploads', 'courses'),
     filename: (req, file, callback) => {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
       const ext = extname(file.originalname);
