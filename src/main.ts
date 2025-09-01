@@ -8,15 +8,19 @@ import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
+  // Serve static files FIRST (no /api prefix)
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads/',
+  });
+
+  // Then set global prefix for API routes
   app.setGlobalPrefix('api');
+
   app.enableCors({
     origin: 'http://localhost:3000',
     methods: 'GET,POST,PUT,DELETE',
     credentials: true,
   });
-  app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
-
   const config = new DocumentBuilder()
     .setTitle('IELTS Genius Hub API')
     .setDescription('API for IELTS Preparation Web App')
