@@ -46,8 +46,8 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  // Move Swagger to /docs to avoid conflicts with static files
-  SwaggerModule.setup('docs', app, document);
+  // Move Swagger to /api/docs to avoid conflicts with static files
+  SwaggerModule.setup('api/docs', app, document);
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
