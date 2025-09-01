@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -13,6 +14,8 @@ async function bootstrap() {
     methods: 'GET,POST,PUT,DELETE',
     credentials: true,
   });
+  app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
+
   // Serve static files
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads/',
