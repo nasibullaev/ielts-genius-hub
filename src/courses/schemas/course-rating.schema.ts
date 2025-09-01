@@ -1,4 +1,3 @@
-// src/courses/schemas/course-rating.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 

@@ -1,4 +1,3 @@
-// src/admin/dto/create-quiz-question.dto.ts
 import {
   IsString,
   IsNotEmpty,

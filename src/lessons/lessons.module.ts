@@ -1,4 +1,3 @@
-// src/lessons/lessons.module.ts
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { LessonsController } from './lessons.controller';

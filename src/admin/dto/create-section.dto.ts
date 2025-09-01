@@ -1,4 +1,3 @@
-// src/admin/dto/create-section.dto.ts
 import { IsString, IsNotEmpty, IsNumber } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 

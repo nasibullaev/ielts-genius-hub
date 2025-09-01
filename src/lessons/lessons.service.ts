@@ -1,4 +1,3 @@
-// src/lessons/lessons.service.ts
 import {
   Injectable,
   NotFoundException,

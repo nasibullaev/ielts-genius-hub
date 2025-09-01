@@ -1,4 +1,3 @@
-// src/courses/dto/create-course.dto.ts
 import { IsString, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 

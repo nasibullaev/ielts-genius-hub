@@ -1,4 +1,3 @@
-// src/admin/dto/create-lesson.dto.ts
 import {
   IsString,
   IsNotEmpty,

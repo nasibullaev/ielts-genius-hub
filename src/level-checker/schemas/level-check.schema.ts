@@ -1,4 +1,3 @@
-// src/level-checker/schemas/level-check.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 

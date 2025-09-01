@@ -1,4 +1,3 @@
-// src/courses/courses.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -115,9 +114,6 @@ export class CoursesService {
     return courseWithUnits;
   }
 
-  // Admin only
-  // Update the create method in courses.service.ts:
-  // src/courses/courses.service.ts
   async create(
     createCourseDto: CreateCourseDto,
     pictureUrl: string,
@@ -129,7 +125,6 @@ export class CoursesService {
     return newCourse.save();
   }
 
-  // Also update the update method:
   async update(
     id: string,
     updateData: Partial<CreateCourseDto>,

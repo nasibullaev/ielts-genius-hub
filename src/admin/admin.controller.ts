@@ -1,4 +1,3 @@
-// src/admin/admin.controller.ts
 import {
   Controller,
   Get,
@@ -120,7 +119,6 @@ export class AdminController {
     return this.adminService.getUnitsInCourse(courseId);
   }
 
-  // ========== SECTION MANAGEMENT ==========
   @Post('sections')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
@@ -156,7 +154,6 @@ export class AdminController {
     return this.adminService.getSectionsInUnit(unitId);
   }
 
-  // ========== LESSON MANAGEMENT ==========
   @Post('lessons')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
@@ -192,7 +189,6 @@ export class AdminController {
     return this.adminService.getLessonsInSection(sectionId);
   }
 
-  // ========== QUIZ QUESTION MANAGEMENT ==========
   @Post('lessons/:lessonId/questions')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()

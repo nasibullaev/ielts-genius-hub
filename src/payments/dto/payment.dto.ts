@@ -1,4 +1,3 @@
-// src/payments/dto/payment.dto.ts
 import { IsString, IsNotEmpty, IsNumber, Min, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 

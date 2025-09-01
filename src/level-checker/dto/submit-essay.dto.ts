@@ -1,4 +1,3 @@
-// src/level-checker/dto/submit-essay.dto.ts
 import {
   IsString,
   IsNotEmpty,
