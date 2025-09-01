@@ -5,6 +5,11 @@ import { User } from '../users/schemas/user.schema';
 import { UserActivity } from '../users/schemas/user-activity.schema';
 import { Course } from '../courses/schemas/course.schema';
 import { CourseRating } from '../courses/schemas/course-rating.schema';
+import { Unit } from '../courses/schemas/unit.schema';
+import { Section } from '../courses/schemas/section.schema';
+import { Lesson } from '../lessons/schemas/lesson.schema';
+import { QuizQuestion } from '../lessons/schemas/quiz-question.schema';
+import { LevelCheck } from '../level-checker/schemas/level-check.schema';
 
 @Injectable()
 export class AdminService {
@@ -13,6 +18,12 @@ export class AdminService {
     @InjectModel(UserActivity.name) private activityModel: Model<UserActivity>,
     @InjectModel(Course.name) private courseModel: Model<Course>,
     @InjectModel(CourseRating.name) private ratingModel: Model<CourseRating>,
+    @InjectModel(LevelCheck.name) private levelCheckModel: Model<LevelCheck>,
+    @InjectModel(Unit.name) private unitModel: Model<Unit>, // ✅ Add these
+    @InjectModel(Section.name) private sectionModel: Model<Section>,
+    @InjectModel(Lesson.name) private lessonModel: Model<Lesson>,
+    @InjectModel(QuizQuestion.name)
+    private quizQuestionModel: Model<QuizQuestion>,
   ) {}
 
   // Update the method with explicit typing:
@@ -83,5 +94,81 @@ export class AdminService {
       })),
       courseStats,
     };
+  }
+  // ========== UNIT METHODS ==========
+  async createUnit(createUnitDto) {
+    const unit = new this.unitModel(createUnitDto);
+    return unit.save();
+  }
+
+  async updateUnit(id: string, updateData) {
+    return this.unitModel.findByIdAndUpdate(id, updateData, { new: true });
+  }
+
+  async deleteUnit(id: string) {
+    return this.unitModel.findByIdAndDelete(id);
+  }
+
+  async getUnitsInCourse(courseId: string) {
+    return this.unitModel.find({ courseId }).sort({ order: 1 });
+  }
+
+  // ========== SECTION METHODS ==========
+  async createSection(createSectionDto) {
+    const section = new this.sectionModel(createSectionDto);
+    return section.save();
+  }
+
+  async updateSection(id: string, updateData) {
+    return this.sectionModel.findByIdAndUpdate(id, updateData, { new: true });
+  }
+
+  async deleteSection(id: string) {
+    return this.sectionModel.findByIdAndDelete(id);
+  }
+
+  async getSectionsInUnit(unitId: string) {
+    return this.sectionModel.find({ unitId }).sort({ order: 1 });
+  }
+
+  // ========== LESSON METHODS ==========
+  async createLesson(createLessonDto) {
+    const lesson = new this.lessonModel(createLessonDto);
+    return lesson.save();
+  }
+
+  async updateLesson(id: string, updateData) {
+    return this.lessonModel.findByIdAndUpdate(id, updateData, { new: true });
+  }
+
+  async deleteLesson(id: string) {
+    return this.lessonModel.findByIdAndDelete(id);
+  }
+
+  async getLessonsInSection(sectionId: string) {
+    return this.lessonModel.find({ sectionId }).sort({ order: 1 });
+  }
+
+  // ========== QUIZ QUESTION METHODS ==========
+  async addQuizQuestion(lessonId: string, questionDto) {
+    const question = new this.quizQuestionModel({
+      ...questionDto,
+      lessonId,
+    });
+    return question.save();
+  }
+
+  async updateQuizQuestion(id: string, updateData) {
+    return this.quizQuestionModel.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
+  }
+
+  async deleteQuizQuestion(id: string) {
+    return this.quizQuestionModel.findByIdAndDelete(id);
+  }
+
+  async getQuizQuestions(lessonId: string) {
+    return this.quizQuestionModel.find({ lessonId }).sort({ order: 1 });
   }
 }

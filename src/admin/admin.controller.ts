@@ -1,5 +1,15 @@
 // src/admin/admin.controller.ts
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -10,6 +20,13 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { AdminService } from './admin.service';
+import { CreateUnitDto, UpdateUnitDto } from './dto/create-unit.dto';
+import { CreateSectionDto, UpdateSectionDto } from './dto/create-section.dto';
+import { CreateLessonDto, UpdateLessonDto } from './dto/create-lesson.dto';
+import {
+  CreateQuizQuestionDto,
+  UpdateQuizQuestionDto,
+} from './dto/create-quiz-question.dto';
 
 export class DashboardStatsDto {
   @ApiProperty({ example: 1250 })
@@ -66,5 +83,151 @@ export class AdminController {
   @ApiResponse({ status: 403, description: 'Admin access required' })
   async getDashboardStats() {
     return this.adminService.getDashboardStats();
+  }
+
+  @Post('units')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create unit in course' })
+  async createUnit(@Body() createUnitDto: CreateUnitDto) {
+    return this.adminService.createUnit(createUnitDto);
+  }
+
+  @Put('units/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update unit' })
+  async updateUnit(
+    @Param('id') id: string,
+    @Body() updateUnitDto: UpdateUnitDto,
+  ) {
+    return this.adminService.updateUnit(id, updateUnitDto);
+  }
+
+  @Delete('units/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete unit' })
+  async deleteUnit(@Param('id') id: string) {
+    return this.adminService.deleteUnit(id);
+  }
+
+  @Get('courses/:courseId/units')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all units in a course' })
+  async getUnitsInCourse(@Param('courseId') courseId: string) {
+    return this.adminService.getUnitsInCourse(courseId);
+  }
+
+  // ========== SECTION MANAGEMENT ==========
+  @Post('sections')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create section in unit' })
+  async createSection(@Body() createSectionDto: CreateSectionDto) {
+    return this.adminService.createSection(createSectionDto);
+  }
+
+  @Put('sections/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update section' })
+  async updateSection(
+    @Param('id') id: string,
+    @Body() updateSectionDto: UpdateSectionDto,
+  ) {
+    return this.adminService.updateSection(id, updateSectionDto);
+  }
+
+  @Delete('sections/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete section' })
+  async deleteSection(@Param('id') id: string) {
+    return this.adminService.deleteSection(id);
+  }
+
+  @Get('units/:unitId/sections')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all sections in a unit' })
+  async getSectionsInUnit(@Param('unitId') unitId: string) {
+    return this.adminService.getSectionsInUnit(unitId);
+  }
+
+  // ========== LESSON MANAGEMENT ==========
+  @Post('lessons')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create lesson in section' })
+  async createLesson(@Body() createLessonDto: CreateLessonDto) {
+    return this.adminService.createLesson(createLessonDto);
+  }
+
+  @Put('lessons/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update lesson' })
+  async updateLesson(
+    @Param('id') id: string,
+    @Body() updateLessonDto: UpdateLessonDto,
+  ) {
+    return this.adminService.updateLesson(id, updateLessonDto);
+  }
+
+  @Delete('lessons/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete lesson' })
+  async deleteLesson(@Param('id') id: string) {
+    return this.adminService.deleteLesson(id);
+  }
+
+  @Get('sections/:sectionId/lessons')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all lessons in a section' })
+  async getLessonsInSection(@Param('sectionId') sectionId: string) {
+    return this.adminService.getLessonsInSection(sectionId);
+  }
+
+  // ========== QUIZ QUESTION MANAGEMENT ==========
+  @Post('lessons/:lessonId/questions')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add question to quiz lesson' })
+  async addQuizQuestion(
+    @Param('lessonId') lessonId: string,
+    @Body() questionDto: CreateQuizQuestionDto,
+  ) {
+    return this.adminService.addQuizQuestion(lessonId, questionDto);
+  }
+
+  @Put('questions/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update quiz question' })
+  async updateQuizQuestion(
+    @Param('id') id: string,
+    @Body() questionDto: UpdateQuizQuestionDto,
+  ) {
+    return this.adminService.updateQuizQuestion(id, questionDto);
+  }
+
+  @Delete('questions/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete quiz question' })
+  async deleteQuizQuestion(@Param('id') id: string) {
+    return this.adminService.deleteQuizQuestion(id);
+  }
+
+  @Get('lessons/:lessonId/questions')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all questions in quiz lesson' })
+  async getQuizQuestions(@Param('lessonId') lessonId: string) {
+    return this.adminService.getQuizQuestions(lessonId);
   }
 }
