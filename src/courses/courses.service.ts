@@ -113,51 +113,33 @@ export class CoursesService {
   }
 
   async findOne(id: string, userId?: string) {
-    const course = await this.courseModel
-      .findById(id)
-      .populate({
-        path: 'units',
-        options: { sort: { order: 1 } },
-        populate: {
-          path: 'sections',
-          options: { sort: { order: 1 } },
-          populate: { path: 'lessons', options: { sort: { order: 1 } } },
-        },
-      })
-      .lean({ virtuals: true })
-      .exec();
+    // Find the course first
+    const course = await this.courseModel.findById(id).lean().exec();
     if (!course) {
       throw new NotFoundException('Course not found');
     }
 
-    // Compute total lessons from populated data
-    const units = (course as any)?.units || [];
-    let totalLessonsCount = units.reduce((acc: number, unit: any) => {
-      const sections = unit.sections || [];
-      const lessonsInUnit = sections.reduce(
-        (sAcc: number, section: any) => sAcc + (section.lessons || []).length,
-        0,
-      );
-      return acc + lessonsInUnit;
-    }, 0);
+    // Get units for this course
+    const units = await this.unitModel
+      .find({ courseId: id })
+      .sort({ order: 1 })
+      .lean()
+      .exec();
 
-    // Fallback: if population missed lessons, compute via direct counts
-    if (!totalLessonsCount) {
-      const unitIds = (
-        await this.unitModel.find({ courseId: id }).select('_id').lean()
-      ).map((u) => u._id);
-      const sectionIds = (
-        await this.sectionModel
-          .find({ unitId: { $in: unitIds } })
-          .select('_id')
-          .lean()
-      ).map((s) => s._id);
-      totalLessonsCount = await this.lessonModel.countDocuments({
-        sectionId: { $in: sectionIds },
-      });
-    }
+    const unitIds = units.map((unit) => unit._id.toString());
+    const sections = await this.sectionModel
+      .find({ unitId: { $in: unitIds } })
+      .sort({ order: 1 })
+      .lean()
+      .exec();
 
-    // If user is paid, include lessons within sections
+    const sectionIds = sections.map((section) => section._id);
+    const lessons = await this.lessonModel
+      .find({ sectionId: { $in: sectionIds } })
+      .sort({ order: 1 })
+      .lean()
+      .exec();
+
     let isPaid = false;
     if (userId) {
       const user = await this.userModel
@@ -167,21 +149,34 @@ export class CoursesService {
       isPaid = !!user?.isPaid;
     }
 
+    const unitsWithSections = units.map((unit) => {
+      const unitSections = sections
+        .filter((section) => section.unitId.toString() === unit._id.toString())
+        .map((section) => ({
+          ...section,
+
+          lessons: isPaid
+            ? lessons.filter(
+                (lesson) =>
+                  lesson.sectionId.toString() === section._id.toString(),
+              )
+            : undefined,
+        }));
+
+      return {
+        ...unit,
+        sections: unitSections,
+      };
+    });
+
+    const totalLessonsCount = lessons.length;
+
     const courseWithUnits = {
       ...course,
       totalLessons: totalLessonsCount,
-      units: isPaid
-        ? units
-        : units.map((unit: any) => ({
-            ...unit,
-            sections: (unit.sections || []).map((s: any) => ({
-              ...s,
-              lessons: undefined,
-            })),
-          })),
-    } as any;
+      units: unitsWithSections,
+    };
 
-    // Add progress if user is authenticated
     if (userId) {
       const progress = await this.progressModel
         .findOne({
@@ -203,16 +198,12 @@ export class CoursesService {
     createCourseDto: CreateCourseDto,
     pictureUrl: string,
   ): Promise<Course> {
-    console.log('Creating course with picture URL:', pictureUrl);
-    console.log('Current working directory:', process.cwd());
-
     const newCourse = new this.courseModel({
       ...createCourseDto,
       picture: pictureUrl,
     });
 
     const savedCourse = await newCourse.save();
-    console.log('Course saved with picture:', savedCourse.picture);
 
     return savedCourse;
   }
@@ -222,10 +213,10 @@ export class CoursesService {
     updateData: Partial<CreateCourseDto>,
     pictureUrl?: string,
   ): Promise<Course> {
-    const updatePayload: any = { ...updateData }; // ✅ Use 'any' type
+    const updatePayload: any = { ...updateData };
 
     if (pictureUrl) {
-      updatePayload.picture = pictureUrl; // ✅ Now this works
+      updatePayload.picture = pictureUrl;
     }
 
     const updatedCourse = await this.courseModel

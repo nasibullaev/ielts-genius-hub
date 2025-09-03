@@ -4,7 +4,6 @@ import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -50,7 +49,7 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  // Move Swagger to /api/docs to avoid conflicts with static files
+
   SwaggerModule.setup('api/docs', app, document);
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
