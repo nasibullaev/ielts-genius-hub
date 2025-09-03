@@ -16,6 +16,9 @@ import {
   UserProgressSchema,
 } from '../users/schemas/user-progress.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
+import { Section, SectionSchema } from '../courses/schemas/section.schema';
+import { Unit, UnitSchema } from '../courses/schemas/unit.schema';
+import { Course, CourseSchema } from '../courses/schemas/course.schema';
 
 @Module({
   imports: [
@@ -25,6 +28,9 @@ import { User, UserSchema } from '../users/schemas/user.schema';
       { name: UserActivity.name, schema: UserActivitySchema },
       { name: UserProgress.name, schema: UserProgressSchema },
       { name: User.name, schema: UserSchema },
+      { name: Section.name, schema: SectionSchema },
+      { name: Unit.name, schema: UnitSchema },
+      { name: Course.name, schema: CourseSchema },
     ]),
   ],
   controllers: [LessonsController],

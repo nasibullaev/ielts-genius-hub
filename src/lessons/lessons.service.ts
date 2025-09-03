@@ -10,6 +10,9 @@ import { QuizQuestion } from './schemas/quiz-question.schema';
 import { UserActivity } from '../users/schemas/user-activity.schema';
 import { UserProgress } from '../users/schemas/user-progress.schema';
 import { User } from '../users/schemas/user.schema';
+import { Section } from '../courses/schemas/section.schema';
+import { Unit } from '../courses/schemas/unit.schema';
+import { Course } from '../courses/schemas/course.schema';
 import { QuizAnswerDto } from './dto/quiz-answer.dto';
 
 @Injectable()
@@ -21,6 +24,9 @@ export class LessonsService {
     @InjectModel(UserActivity.name) private activityModel: Model<UserActivity>,
     @InjectModel(UserProgress.name) private progressModel: Model<UserProgress>,
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Section.name) private sectionModel: Model<Section>,
+    @InjectModel(Unit.name) private unitModel: Model<Unit>,
+    @InjectModel(Course.name) private courseModel: Model<Course>,
   ) {}
 
   async getLesson(lessonId: string, userId: string) {
@@ -103,10 +109,17 @@ export class LessonsService {
     const score = Math.round((correctCount / questions.length) * 100);
 
     // Save activity
+    // Resolve courseId from section -> unit -> course
+    const section = await this.sectionModel.findById(lesson.sectionId).lean();
+    const unit = section
+      ? await this.unitModel.findById(section.unitId).lean()
+      : null;
+    const courseId = unit ? unit.courseId.toString() : undefined;
+
     await this.saveActivity(
       userId,
       lessonId,
-      lesson.sectionId.toString(),
+      courseId!,
       'quiz_attempted',
       score,
       quizAnswers.answers,
@@ -127,20 +140,20 @@ export class LessonsService {
       throw new ForbiddenException('Payment required to access lessons');
     }
 
-    const lesson = await this.lessonModel
-      .findById(lessonId)
-      .populate('sectionId');
+    const lesson = await this.lessonModel.findById(lessonId).lean();
     if (!lesson) {
       throw new NotFoundException('Lesson not found');
     }
 
     // Save completion activity
-    await this.saveActivity(
-      userId,
-      lessonId,
-      lesson.sectionId.toString(),
-      'completed',
-    );
+    // Resolve courseId
+    const section = await this.sectionModel.findById(lesson.sectionId).lean();
+    const unit = section
+      ? await this.unitModel.findById(section.unitId).lean()
+      : null;
+    const courseId = unit ? unit.courseId.toString() : undefined;
+
+    await this.saveActivity(userId, lessonId, courseId!, 'completed');
 
     // Update user streak
     await this.updateUserStreak(userId);
@@ -178,8 +191,21 @@ export class LessonsService {
       activityType: { $in: ['completed', 'quiz_attempted'] },
     });
 
+    // Count lessons belong to this courseId via section -> unit -> course
+    const unitIds = (
+      await this.unitModel
+        .find({ courseId: new Types.ObjectId(courseId) })
+        .select('_id')
+        .lean()
+    ).map((u) => u._id);
+    const sectionIds = (
+      await this.sectionModel
+        .find({ unitId: { $in: unitIds } })
+        .select('_id')
+        .lean()
+    ).map((s) => s._id);
     const totalLessonsCount = await this.lessonModel.countDocuments({
-      // You'll need to populate through sections to get courseId
+      sectionId: { $in: sectionIds },
     });
 
     const progressPercentage =

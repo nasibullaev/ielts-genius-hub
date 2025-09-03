@@ -8,8 +8,10 @@ import { Model, Types } from 'mongoose';
 import { Course } from './schemas/course.schema';
 import { Unit } from './schemas/unit.schema';
 import { Section } from './schemas/section.schema';
+import { Lesson } from '../lessons/schemas/lesson.schema';
 import { CourseRating } from './schemas/course-rating.schema';
 import { UserProgress } from '../users/schemas/user-progress.schema';
+import { User } from '../users/schemas/user.schema';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { RateCourseDto } from './dto/rate-course.dto';
 
@@ -19,8 +21,10 @@ export class CoursesService {
     @InjectModel(Course.name) private courseModel: Model<Course>,
     @InjectModel(Unit.name) private unitModel: Model<Unit>,
     @InjectModel(Section.name) private sectionModel: Model<Section>,
+    @InjectModel(Lesson.name) private lessonModel: Model<Lesson>,
     @InjectModel(CourseRating.name) private ratingModel: Model<CourseRating>,
     @InjectModel(UserProgress.name) private progressModel: Model<UserProgress>,
+    @InjectModel(User.name) private userModel: Model<User>,
   ) {}
 
   // Public - get all courses (for visitors and users)
@@ -28,23 +32,61 @@ export class CoursesService {
     const courses = await this.courseModel.find().lean().exec();
 
     if (!userId) {
-      // For visitors - return basic course info only
-      return courses.map((course) => ({
-        _id: course._id,
-        title: course.title,
-        description: course.description,
-        rating: course.rating,
-        duration: course.duration,
-        totalLessons: course.totalLessons,
-        level: course.level,
-        picture: course.picture,
-        ratingCount: course.ratingCount,
-      }));
+      // For visitors - return basic course info only (with dynamic totalLessons)
+      const results = await Promise.all(
+        courses.map(async (course) => {
+          const unitIds = (
+            await this.unitModel
+              .find({ courseId: course._id })
+              .select('_id')
+              .lean()
+          ).map((u) => u._id);
+          const sectionIds = (
+            await this.sectionModel
+              .find({ unitId: { $in: unitIds } })
+              .select('_id')
+              .lean()
+          ).map((s) => s._id);
+          const totalLessonsCount = await this.lessonModel.countDocuments({
+            sectionId: { $in: sectionIds },
+          });
+
+          return {
+            _id: course._id,
+            title: course.title,
+            description: course.description,
+            rating: course.rating,
+            duration: course.duration,
+            totalLessons: totalLessonsCount,
+            level: course.level,
+            picture: course.picture,
+            ratingCount: course.ratingCount,
+          };
+        }),
+      );
+      return results;
     }
 
     // For authenticated users - include progress
     const coursesWithProgress = await Promise.all(
       courses.map(async (course) => {
+        // Dynamically compute total lessons for the course
+        const unitIds = (
+          await this.unitModel
+            .find({ courseId: course._id })
+            .select('_id')
+            .lean()
+        ).map((u) => u._id);
+        const sectionIds = (
+          await this.sectionModel
+            .find({ unitId: { $in: unitIds } })
+            .select('_id')
+            .lean()
+        ).map((s) => s._id);
+        const totalLessonsCount = await this.lessonModel.countDocuments({
+          sectionId: { $in: sectionIds },
+        });
+
         const progress = await this.progressModel
           .findOne({
             userId: new Types.ObjectId(userId),
@@ -54,6 +96,7 @@ export class CoursesService {
 
         return {
           ...course,
+          totalLessons: totalLessonsCount,
           progress: progress
             ? {
                 completedLessons: progress.completedLessons,
@@ -80,18 +123,50 @@ export class CoursesService {
       .find({ courseId: id })
       .sort({ order: 1 })
       .lean();
+    // Compute total lessons
+    const unitIds = units.map((u) => u._id);
+    const sectionIds = (
+      await this.sectionModel
+        .find({ unitId: { $in: unitIds } })
+        .select('_id')
+        .lean()
+    ).map((s) => s._id);
+    const totalLessonsCount = await this.lessonModel.countDocuments({
+      sectionId: { $in: sectionIds },
+    });
+
+    // If user is paid, include lessons within sections
+    let isPaid = false;
+    if (userId) {
+      const user = await this.userModel
+        .findById(userId)
+        .select('isPaid')
+        .lean();
+      isPaid = !!user?.isPaid;
+    }
+
     const courseWithUnits = {
       ...course,
+      totalLessons: totalLessonsCount,
       units: await Promise.all(
         units.map(async (unit) => {
           const sections = await this.sectionModel
             .find({ unitId: unit._id })
             .sort({ order: 1 })
             .lean();
-          return {
-            ...unit,
-            sections: sections,
-          };
+          if (!isPaid) {
+            return { ...unit, sections };
+          }
+          const sectionsWithLessons = await Promise.all(
+            sections.map(async (section) => {
+              const lessons = await this.lessonModel
+                .find({ sectionId: section._id })
+                .sort({ order: 1 })
+                .lean();
+              return { ...section, lessons };
+            }),
+          );
+          return { ...unit, sections: sectionsWithLessons };
         }),
       ),
     };
