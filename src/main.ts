@@ -33,7 +33,10 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin:
+      process.env.CORS_ORIGIN ||
+      'http://localhost:3000' ||
+      'http://localhost:5173',
     methods: 'GET,POST,PUT,DELETE',
     credentials: true,
   });

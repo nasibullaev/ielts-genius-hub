@@ -113,27 +113,49 @@ export class CoursesService {
   }
 
   async findOne(id: string, userId?: string) {
-    const course = await this.courseModel.findById(id).lean().exec();
+    const course = await this.courseModel
+      .findById(id)
+      .populate({
+        path: 'units',
+        options: { sort: { order: 1 } },
+        populate: {
+          path: 'sections',
+          options: { sort: { order: 1 } },
+          populate: { path: 'lessons', options: { sort: { order: 1 } } },
+        },
+      })
+      .lean({ virtuals: true })
+      .exec();
     if (!course) {
       throw new NotFoundException('Course not found');
     }
 
-    // Get units with sections and lessons
-    const units = await this.unitModel
-      .find({ courseId: id })
-      .sort({ order: 1 })
-      .lean();
-    // Compute total lessons
-    const unitIds = units.map((u) => u._id);
-    const sectionIds = (
-      await this.sectionModel
-        .find({ unitId: { $in: unitIds } })
-        .select('_id')
-        .lean()
-    ).map((s) => s._id);
-    const totalLessonsCount = await this.lessonModel.countDocuments({
-      sectionId: { $in: sectionIds },
-    });
+    // Compute total lessons from populated data
+    const units = (course as any)?.units || [];
+    let totalLessonsCount = units.reduce((acc: number, unit: any) => {
+      const sections = unit.sections || [];
+      const lessonsInUnit = sections.reduce(
+        (sAcc: number, section: any) => sAcc + (section.lessons || []).length,
+        0,
+      );
+      return acc + lessonsInUnit;
+    }, 0);
+
+    // Fallback: if population missed lessons, compute via direct counts
+    if (!totalLessonsCount) {
+      const unitIds = (
+        await this.unitModel.find({ courseId: id }).select('_id').lean()
+      ).map((u) => u._id);
+      const sectionIds = (
+        await this.sectionModel
+          .find({ unitId: { $in: unitIds } })
+          .select('_id')
+          .lean()
+      ).map((s) => s._id);
+      totalLessonsCount = await this.lessonModel.countDocuments({
+        sectionId: { $in: sectionIds },
+      });
+    }
 
     // If user is paid, include lessons within sections
     let isPaid = false;
@@ -148,28 +170,16 @@ export class CoursesService {
     const courseWithUnits = {
       ...course,
       totalLessons: totalLessonsCount,
-      units: await Promise.all(
-        units.map(async (unit) => {
-          const sections = await this.sectionModel
-            .find({ unitId: unit._id })
-            .sort({ order: 1 })
-            .lean();
-          if (!isPaid) {
-            return { ...unit, sections };
-          }
-          const sectionsWithLessons = await Promise.all(
-            sections.map(async (section) => {
-              const lessons = await this.lessonModel
-                .find({ sectionId: section._id })
-                .sort({ order: 1 })
-                .lean();
-              return { ...section, lessons };
-            }),
-          );
-          return { ...unit, sections: sectionsWithLessons };
-        }),
-      ),
-    };
+      units: isPaid
+        ? units
+        : units.map((unit: any) => ({
+            ...unit,
+            sections: (unit.sections || []).map((s: any) => ({
+              ...s,
+              lessons: undefined,
+            })),
+          })),
+    } as any;
 
     // Add progress if user is authenticated
     if (userId) {

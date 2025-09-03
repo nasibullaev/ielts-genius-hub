@@ -19,3 +19,14 @@ export class Section {
 }
 
 export const SectionSchema = SchemaFactory.createForClass(Section);
+
+// Enable virtuals in JSON and Object outputs
+SectionSchema.set('toJSON', { virtuals: true });
+SectionSchema.set('toObject', { virtuals: true });
+
+// Virtual populate: Section → Lessons
+SectionSchema.virtual('lessons', {
+  ref: 'Lesson',
+  localField: '_id',
+  foreignField: 'sectionId',
+});

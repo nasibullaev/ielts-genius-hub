@@ -19,3 +19,14 @@ export class Unit {
 }
 
 export const UnitSchema = SchemaFactory.createForClass(Unit);
+
+// Enable virtuals in JSON and Object outputs
+UnitSchema.set('toJSON', { virtuals: true });
+UnitSchema.set('toObject', { virtuals: true });
+
+// Virtual populate: Unit → Sections
+UnitSchema.virtual('sections', {
+  ref: 'Section',
+  localField: '_id',
+  foreignField: 'unitId',
+});

@@ -34,3 +34,14 @@ export class Course {
 }
 
 export const CourseSchema = SchemaFactory.createForClass(Course);
+
+// Enable virtuals in JSON and Object outputs
+CourseSchema.set('toJSON', { virtuals: true });
+CourseSchema.set('toObject', { virtuals: true });
+
+// Virtual populate: Course → Units
+CourseSchema.virtual('units', {
+  ref: 'Unit',
+  localField: '_id',
+  foreignField: 'courseId',
+});
