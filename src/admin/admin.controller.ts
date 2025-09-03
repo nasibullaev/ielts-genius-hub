@@ -26,6 +26,7 @@ import {
   CreateQuizQuestionDto,
   UpdateQuizQuestionDto,
 } from './dto/create-quiz-question.dto';
+import { CreateBulkQuestionsDto } from './dto/bulk-quiz-questions.dto';
 
 export class DashboardStatsDto {
   @ApiProperty({ example: 1250 })
@@ -198,6 +199,47 @@ export class AdminController {
     @Body() questionDto: CreateQuizQuestionDto,
   ) {
     return this.adminService.addQuizQuestion(lessonId, questionDto);
+  }
+  @Post('lessons/:lessonId/questions/bulk')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Add multiple questions to quiz lesson at once',
+    description:
+      'Bulk create up to 50 questions for a quiz lesson. Automatically handles order numbering.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Questions created successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Created 5 questions successfully',
+        },
+        createdCount: { type: 'number', example: 5 },
+        questions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              _id: { type: 'string' },
+              question: { type: 'string' },
+              order: { type: 'number' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Validation error' })
+  @ApiResponse({ status: 404, description: 'Lesson not found' })
+  async addBulkQuizQuestions(
+    @Param('lessonId') lessonId: string,
+    @Body() bulkQuestionsDto: CreateBulkQuestionsDto,
+  ) {
+    return this.adminService.addBulkQuizQuestions(lessonId, bulkQuestionsDto);
   }
 
   @Put('questions/:id')

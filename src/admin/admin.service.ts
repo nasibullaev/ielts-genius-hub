@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from '../users/schemas/user.schema';
@@ -10,6 +14,7 @@ import { Section } from '../courses/schemas/section.schema';
 import { Lesson } from '../lessons/schemas/lesson.schema';
 import { QuizQuestion } from '../lessons/schemas/quiz-question.schema';
 import { LevelCheck } from '../level-checker/schemas/level-check.schema';
+import { CreateBulkQuestionsDto } from './dto/bulk-quiz-questions.dto';
 
 @Injectable()
 export class AdminService {
@@ -156,6 +161,53 @@ export class AdminService {
       lessonId,
     });
     return question.save();
+  }
+  async addBulkQuizQuestions(
+    lessonId: string,
+    bulkQuestionsDto: CreateBulkQuestionsDto,
+  ) {
+    // Check if lesson exists and is a quiz
+    const lesson = await this.lessonModel.findById(lessonId);
+    if (!lesson) {
+      throw new NotFoundException('Lesson not found');
+    }
+    if (lesson.type !== 'Quiz') {
+      throw new BadRequestException(
+        'Can only add questions to Quiz type lessons',
+      );
+    }
+
+    // Get the current highest order number for this lesson
+    const lastQuestion = await this.quizQuestionModel
+      .findOne({ lessonId })
+      .sort({ order: -1 })
+      .select('order')
+      .lean();
+
+    const startingOrder = (lastQuestion?.order || 0) + 1;
+
+    // Prepare questions with correct lesson ID and sequential order
+    const questionsToCreate = bulkQuestionsDto.questions.map(
+      (questionData, index) => ({
+        ...questionData,
+        lessonId,
+        order: startingOrder + index, // Auto-increment order
+      }),
+    );
+
+    // Bulk insert all questions
+    const createdQuestions =
+      await this.quizQuestionModel.insertMany(questionsToCreate);
+
+    return {
+      message: `Created ${createdQuestions.length} questions successfully`,
+      createdCount: createdQuestions.length,
+      questions: createdQuestions.map((q) => ({
+        _id: q._id,
+        question: q.question,
+        order: q.order,
+      })),
+    };
   }
 
   async updateQuizQuestion(id: string, updateData) {
