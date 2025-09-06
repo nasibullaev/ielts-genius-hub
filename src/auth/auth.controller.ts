@@ -8,7 +8,6 @@ import {
   ApiProperty,
 } from '@nestjs/swagger';
 
-// Add response DTOs for documentation
 export class LoginResponseDto {
   @ApiProperty({
     example:
