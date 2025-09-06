@@ -25,6 +25,11 @@ import {
   ListeningResponseDto,
   ListeningEvaluationResponseDto,
 } from './dto/listening.dto';
+import {
+  SubmitReadingDto,
+  ReadingResponseDto,
+  ReadingEvaluationResponseDto,
+} from './dto/reading.dto';
 
 // Response DTOs for Swagger
 export class TopicResponseDto {
@@ -240,6 +245,65 @@ export class LevelCheckerController {
       submitListeningDto.testId,
       submitListeningDto.userAnswers,
       submitListeningDto.timeSpent,
+    );
+  }
+
+  // Reading endpoints
+  @Get('reading')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get Reading test with passage and questions',
+    description:
+      'Generates a personalized IELTS Reading test with passage and questions based on user interests',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Reading test generated successfully',
+    type: ReadingResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to generate reading test',
+  })
+  async getReadingTest(@Request() req) {
+    return this.levelCheckerService.generateReadingTopic(req.user.sub);
+  }
+
+  @Post('reading')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Submit Reading test answers for evaluation',
+    description:
+      'Evaluates the submitted Reading test answers against the stored correct answers and provides detailed feedback with IELTS band score',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Reading test evaluated successfully',
+    type: ReadingEvaluationResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error, test not found, or evaluation failed',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
+  async submitReadingAnswers(
+    @Request() req,
+    @Body() submitReadingDto: SubmitReadingDto,
+  ) {
+    return this.levelCheckerService.evaluateReadingAnswers(
+      req.user.sub,
+      submitReadingDto.testId,
+      submitReadingDto.userAnswers,
+      submitReadingDto.timeSpent,
     );
   }
 }

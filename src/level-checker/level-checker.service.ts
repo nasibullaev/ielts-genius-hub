@@ -7,6 +7,7 @@ import { LevelCheck } from './schemas/level-check.schema';
 import { User } from '../users/schemas/user.schema';
 import { WritingTask1 } from './schemas/writing-task1.schema';
 import { ListeningTest, ListeningSubmission } from './schemas/listening.schema';
+import { ReadingTest, ReadingSubmission } from './schemas/reading.schema';
 import { ChartGenerationService } from './services/chart-generation.service';
 
 @Injectable()
@@ -24,6 +25,10 @@ export class LevelCheckerService {
     private listeningTestModel: Model<ListeningTest>,
     @InjectModel(ListeningSubmission.name)
     private listeningSubmissionModel: Model<ListeningSubmission>,
+    @InjectModel(ReadingTest.name)
+    private readingTestModel: Model<ReadingTest>,
+    @InjectModel(ReadingSubmission.name)
+    private readingSubmissionModel: Model<ReadingSubmission>,
     private chartGenerationService: ChartGenerationService,
   ) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -660,6 +665,286 @@ Return your response in this EXACT JSON format (no additional text):
       suggestions.push(
         'Practice listening to academic lectures and discussions',
       );
+    }
+
+    return suggestions.length > 0
+      ? suggestions
+      : ['Keep practicing to maintain your current level'];
+  }
+
+  // Reading methods
+  async generateReadingTopic(userId: string): Promise<{
+    testId: string;
+    readingText: string;
+    questions: Array<{
+      question: string;
+      questionType: string;
+      options?: string[];
+    }>;
+  }> {
+    try {
+      // Fetch user interests
+      const user = await this.userModel
+        .findById(userId)
+        .select('interests')
+        .lean()
+        .exec();
+      const userInterests = user?.interests
+        ? user.interests.map((interest) => interest.toString())
+        : ['technology', 'education', 'health', 'environment'];
+
+      const prompt = `You are an IELTS Reading test generator. Generate a reading passage and questions based on the user's interests.
+
+User Interests: ${userInterests.length > 0 ? userInterests.join(', ') : 'General topics'}
+
+Generate:
+1. A reading passage (800-1000 words) about topics related to: ${userInterests.length > 0 ? userInterests.join(', ') : 'general topics'}
+2. 13 questions with the following types:
+   - 3 True/False/Not Given questions
+   - 4 Multiple Choice questions (A, B, C, D)
+   - 3 Input Text questions (fill in the missing word)
+   - 2 Matching questions
+   - 1 Heading Matching question
+
+The reading passage should be:
+- Academic in nature
+- Clear and well-structured
+- Appropriate for IELTS Academic level
+- Related to the user's interests when possible
+- Include various text types (descriptive, argumentative, analytical)
+
+For each question, provide:
+- The question text
+- Question type (true_false_not_given, multiple_choice, input_text, matching, heading_matching)
+- Options (for multiple choice, true/false, and matching questions)
+- Correct answer
+- Explanation
+
+Return your response in this EXACT JSON format (no additional text):
+{
+  "readingText": "Your reading passage here...",
+  "questions": [
+    {
+      "question": "Question text here",
+      "questionType": "true_false_not_given",
+      "options": ["True", "False", "Not Given"],
+      "correctAnswer": "True",
+      "explanation": "Explanation here"
+    },
+    {
+      "question": "Question text here",
+      "questionType": "multiple_choice",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswer": "Option B",
+      "explanation": "Explanation here"
+    },
+    {
+      "question": "Complete the sentence: The main topic discussed is _____",
+      "questionType": "input_text",
+      "correctAnswer": "climate change",
+      "explanation": "The passage clearly states that climate change is the main topic"
+    },
+    {
+      "question": "Match the following statements with their corresponding paragraphs",
+      "questionType": "matching",
+      "options": ["Paragraph A", "Paragraph B", "Paragraph C", "Paragraph D"],
+      "correctAnswer": "Paragraph B",
+      "explanation": "The statement matches the content in Paragraph B"
+    },
+    {
+      "question": "Choose the most suitable heading for the passage",
+      "questionType": "heading_matching",
+      "options": ["Heading 1", "Heading 2", "Heading 3", "Heading 4"],
+      "correctAnswer": "Heading 2",
+      "explanation": "Heading 2 best summarizes the main idea of the passage"
+    }
+  ]
+}`;
+
+      const result = await this.model.generateContent(prompt);
+      const response = result.response.text().trim();
+
+      if (!response) {
+        throw new BadRequestException('Failed to generate reading content');
+      }
+
+      try {
+        const cleanResponse = response.replace(/```json\n?|\n?```/g, '').trim();
+        const readingContent = JSON.parse(cleanResponse);
+
+        // Validate the response structure
+        if (!readingContent.readingText || !readingContent.questions) {
+          throw new BadRequestException('Invalid response format from AI');
+        }
+
+        // Generate unique test ID
+        const testId = `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        // Save the test to database (with correct answers)
+        const readingTest = new this.readingTestModel({
+          readingText: readingContent.readingText,
+          questions: readingContent.questions,
+          testId,
+        });
+
+        await readingTest.save();
+
+        // Return test without correct answers
+        const questionsWithoutAnswers = readingContent.questions.map(
+          (q: any) => ({
+            question: q.question,
+            questionType: q.questionType,
+            options: q.options,
+          }),
+        );
+
+        return {
+          testId,
+          readingText: readingContent.readingText,
+          questions: questionsWithoutAnswers,
+        };
+      } catch (parseError) {
+        console.error('Failed to parse Gemini response:', response);
+        throw new BadRequestException('Invalid response format from AI');
+      }
+    } catch (error) {
+      console.error('Gemini API Error:', error);
+      throw new BadRequestException('Failed to generate reading content');
+    }
+  }
+
+  async evaluateReadingAnswers(
+    userId: string,
+    testId: string,
+    userAnswers: string[],
+    timeSpent: string,
+  ): Promise<{
+    overallBand: string;
+    correctAnswers: number;
+    totalQuestions: number;
+    percentage: number;
+    detailedResults: Array<{
+      questionIndex: number;
+      question: string;
+      userAnswer: string;
+      correctAnswer: string;
+      isCorrect: boolean;
+      explanation: string;
+    }>;
+    feedback: string;
+    suggestions: string[];
+    submissionId: string;
+  }> {
+    try {
+      // Find the reading test by testId
+      const readingTest = await this.readingTestModel.findOne({ testId });
+      if (!readingTest) {
+        throw new BadRequestException('Reading test not found');
+      }
+
+      // Check answers against correct answers
+      const detailedResults = readingTest.questions.map((question, index) => {
+        const userAnswer = userAnswers[index] || '';
+        const isCorrect = this.compareAnswers(
+          userAnswer,
+          question.correctAnswer,
+        );
+
+        return {
+          questionIndex: index,
+          question: question.question,
+          userAnswer: userAnswer,
+          correctAnswer: question.correctAnswer,
+          isCorrect: isCorrect,
+          explanation: question.explanation,
+        };
+      });
+
+      const correctAnswers = detailedResults.filter(
+        (result) => result.isCorrect,
+      ).length;
+      const totalQuestions = readingTest.questions.length;
+      const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+
+      // Calculate band score based on percentage
+      const overallBand = this.calculateBandScore(percentage);
+
+      // Generate feedback and suggestions
+      const feedback = this.generateReadingFeedback(
+        correctAnswers,
+        totalQuestions,
+        percentage,
+      );
+      const suggestions = this.generateReadingSuggestions(detailedResults);
+
+      // Save submission to database
+      const readingSubmission = new this.readingSubmissionModel({
+        userId: new Types.ObjectId(userId),
+        testId,
+        userAnswers,
+        overallBand,
+        correctAnswers,
+        totalQuestions,
+        percentage,
+        detailedResults,
+        feedback,
+        suggestions,
+        timeSpent,
+      });
+
+      const savedSubmission = await readingSubmission.save();
+
+      return {
+        overallBand,
+        correctAnswers,
+        totalQuestions,
+        percentage,
+        detailedResults,
+        feedback,
+        suggestions,
+        submissionId: (savedSubmission._id as Types.ObjectId).toString(),
+      };
+    } catch (error) {
+      console.error('Error evaluating reading answers:', error);
+      throw new BadRequestException('Failed to evaluate reading answers');
+    }
+  }
+
+  private generateReadingFeedback(
+    correctAnswers: number,
+    totalQuestions: number,
+    percentage: number,
+  ): string {
+    if (percentage >= 80) {
+      return `Excellent performance! You answered ${correctAnswers} out of ${totalQuestions} questions correctly (${percentage}%). This demonstrates strong reading comprehension skills.`;
+    } else if (percentage >= 60) {
+      return `Good performance! You answered ${correctAnswers} out of ${totalQuestions} questions correctly (${percentage}%). You're on the right track with your reading skills.`;
+    } else if (percentage >= 40) {
+      return `Fair performance. You answered ${correctAnswers} out of ${totalQuestions} questions correctly (${percentage}%). Focus on improving your reading comprehension.`;
+    } else {
+      return `Needs improvement. You answered ${correctAnswers} out of ${totalQuestions} questions correctly (${percentage}%). Consider practicing more with reading exercises.`;
+    }
+  }
+
+  private generateReadingSuggestions(
+    detailedResults: Array<{ isCorrect: boolean; question: string }>,
+  ): string[] {
+    const suggestions: string[] = [];
+    const incorrectCount = detailedResults.filter(
+      (result) => !result.isCorrect,
+    ).length;
+
+    if (incorrectCount > 0) {
+      suggestions.push('Practice reading for specific details and main ideas');
+      suggestions.push('Work on skimming and scanning techniques');
+      suggestions.push(
+        'Practice with different text types and academic articles',
+      );
+    }
+
+    if (incorrectCount > 5) {
+      suggestions.push('Focus on improving vocabulary recognition');
+      suggestions.push('Practice reading comprehension with time limits');
     }
 
     return suggestions.length > 0
