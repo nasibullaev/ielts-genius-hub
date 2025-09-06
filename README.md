@@ -1,266 +1,98 @@
 # IELTS Genius Hub API
 
-A comprehensive NestJS backend API for an IELTS preparation platform with AI-powered writing assessment, course management, and admin dashboard.
+A NestJS backend API for IELTS preparation with AI-powered writing assessment and course management.
 
-## 🚀 Features
+## ✨ Key Features
 
-### 🔐 Authentication & Authorization
-
-- JWT-based authentication
-- Role-based access control (Student/Admin)
-- User registration and login with email/phone
-- Profile management with progress tracking
-- Password change with token refresh
-
-### 📚 Course Management
-
-- Hierarchical course structure (Courses → Units → Sections → Lessons)
-- Multiple lesson types: Video, Text, Quiz, File
-- Course ratings and reviews
-- Progress tracking for each user
-- Image upload for course pictures
-
-### 🧪 Interactive Learning
-
-- **Video Lessons**: YouTube video integration
-- **Text Lessons**: Rich content delivery
-- **Quiz System**: Multiple choice questions with instant feedback
-- **File Lessons**: Document and resource sharing
-- Real-time progress calculation
-
-### ✍️ AI-Powered Writing Assessment
-
-- Topic generation using Google Gemini AI
-- Comprehensive essay evaluation based on IELTS criteria:
-  - Task Achievement
-  - Coherence & Cohesion
-  - Lexical Resource
-  - Grammatical Range & Accuracy
-- Detailed feedback and improvement suggestions
-- Word count and time tracking
-
-### 📊 Admin Dashboard
-
-- User analytics (total, monthly active, daily active users)
-- Course performance metrics
-- Recent user activities monitoring
-- Essay submission tracking and detailed reviews
-- Complete course management (CRUD operations)
-
-### 💳 Payment System
-
-- Mock payment processing
-- Subscription management
-- Payment history tracking
-- Access control based on payment status
+- **🔐 Authentication**: JWT-based auth with role-based access (Student/Admin)
+- **📚 Courses**: Hierarchical structure (Courses → Units → Sections → Lessons)
+- **✍️ AI Writing**: Google Gemini-powered essay evaluation with IELTS criteria
+- **📊 Admin Dashboard**: User analytics, course management, essay monitoring
+- **💳 Payments**: Mock payment system with subscription management
 
 ## 🛠️ Tech Stack
 
-- **Framework**: NestJS (Node.js)
-- **Database**: MongoDB with Mongoose
-- **Authentication**: JWT with Passport
-- **AI Integration**: Google Gemini AI
-- **File Upload**: Multer
-- **Documentation**: Swagger
-- **Language**: TypeScript
+- **Backend**: NestJS + TypeScript
+- **Database**: MongoDB + Mongoose
+- **AI**: Google Gemini API
+- **Auth**: JWT + Passport
+- **Docs**: Swagger
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
-### Prerequisites
-
-- Node.js (v16 or higher)
-- MongoDB
-- Google Gemini AI API Key
-
-### Installation
-
-1. **Clone the repository**
+1. **Clone & Install**
 
 ```bash
 git clone https://github.com/nasibullaev/ielts-genius-hub.git
 cd ielts-genius-hub
-```
-
-2. **Install dependencies**
-
-```bash
 npm install
 ```
 
-3. **Environment Setup**
-   Create a `.env` file in the root directory:
+2. **Environment Setup**
+   Create `.env` file:
 
 ```env
-# Database
 MONGO_URI=mongodb://localhost:27017/ielts-genius-hub
-
-# JWT Configuration
 JWT_SECRET=your-super-secret-jwt-key
 JWT_EXPIRES=24h
-
-# AI Integration
 GEMINI_API_KEY=your-gemini-api-key
-
-# Server
 PORT=3000
 ```
 
-4. **Create upload directories**
+3. **Create Directories**
 
 ```bash
-mkdir uploads
-mkdir uploads/courses
+mkdir -p uploads/courses
 ```
 
-5. **Start the development server**
+4. **Start Development**
 
 ```bash
 npm run start:dev
 ```
 
-The API will be available at `http://localhost:3000`
-Swagger documentation: `http://localhost:3000/api`
+- API: `http://localhost:3000`
+- Swagger: `http://localhost:3000/api`
 
-## 📖 API Documentation
+## 📖 Main Endpoints
 
-### Authentication Endpoints
-
-```
-POST /auth/register        # User registration
-POST /auth/login          # User login
-```
-
-### User Management
-
-```
-GET    /users/profile             # Get current user profile
-PUT    /users/profile             # Update user profile
-PUT    /users/change-password     # Change password
-```
-
-### Course Management
-
-```
-GET    /courses                   # Get all courses (public)
-GET    /courses/:id               # Get course details
-POST   /courses                   # Create course (Admin)
-PUT    /courses/:id               # Update course (Admin)
-DELETE /courses/:id               # Delete course (Admin)
-POST   /courses/:id/rate          # Rate a course
-```
-
-### Lesson Management
-
-```
-GET    /lessons/:id               # Get lesson content (Paid users)
-POST   /lessons/:id/complete      # Mark lesson as completed
-POST   /lessons/:id/quiz          # Submit quiz answers
-```
-
-### Writing Assessment
-
-```
-GET    /level-checker             # Get writing topic
-POST   /level-checker             # Submit essay for evaluation
-```
-
-### Payment System
-
-```
-POST   /payments/process          # Process payment (Mock)
-GET    /payments/history          # Get payment history
-```
-
-### Admin Dashboard
-
-```
-GET    /admin/dashboard                    # Dashboard statistics
-GET    /admin/essay-submissions           # Recent essay submissions
-GET    /admin/essay-submissions/:id       # Detailed essay review
-```
+| Endpoint            | Method   | Description                 |
+| ------------------- | -------- | --------------------------- |
+| `/auth/register`    | POST     | User registration           |
+| `/auth/login`       | POST     | User login                  |
+| `/courses`          | GET      | Get all courses             |
+| `/courses/:id`      | GET      | Course details              |
+| `/lessons/:id`      | GET      | Lesson content (paid)       |
+| `/level-checker`    | GET/POST | Writing topics & evaluation |
+| `/payments/process` | POST     | Process payment             |
+| `/admin/dashboard`  | GET      | Admin analytics             |
 
 ## 🔑 Authentication
 
-All protected endpoints require a Bearer token in the Authorization header:
+Include JWT token in headers:
 
 ```
 Authorization: Bearer <your-jwt-token>
 ```
 
-### User Roles
+**Roles:**
 
-- **Student**: Access to courses, lessons, writing checker (with payment)
-- **Admin**: Full access to all endpoints plus admin dashboard
-
-## 💳 Payment Flow
-
-1. **User Registration/Login**: Get access token
-2. **Browse Courses**: View course catalog (free)
-3. **Payment**: Use mock payment with any card details
-4. **Access Content**: Unlock lessons, quizzes, and writing checker
-5. **Progress Tracking**: Automatic progress and streak tracking
+- **Student**: Access courses, lessons, writing checker (with payment)
+- **Admin**: Full access + admin dashboard
 
 ## 🎯 Writing Assessment Flow
 
-1. **Get Topic**: `GET /level-checker` returns AI-generated IELTS topic
-2. **Write Essay**: User writes essay (minimum 150 words)
-3. **Submit for Evaluation**: `POST /level-checker` with topic, essay, and time spent
-4. **Get Results**: Receive IELTS band scores with detailed feedback
-5. **Admin Review**: Admins can see all submissions and detailed evaluations
+1. `GET /level-checker` → Get AI-generated IELTS topic
+2. User writes essay (min 150 words)
+3. `POST /level-checker` → Submit for evaluation
+4. Receive IELTS band scores + detailed feedback
 
-## 📊 Admin Features
-
-### Dashboard Analytics
-
-- Total registered users
-- Monthly and daily active users
-- Recent user activities
-- Course performance metrics
-- Essay submission analytics
-
-### Course Management
-
-- Create/edit/delete courses with image upload
-- Manage course structure (units, sections, lessons)
-- View course ratings and reviews
-
-### User Monitoring
-
-- Track user progress across courses
-- Monitor essay submissions and scores
-- View detailed user activity logs
-
-## 🚀 Deployment
-
-### Production Build
+## 🚀 Production
 
 ```bash
 npm run build
 npm run start:prod
 ```
-
-### Environment Variables for Production
-
-```env
-NODE_ENV=production
-MONGO_URI=your-production-mongodb-uri
-JWT_SECRET=your-production-jwt-secret
-GEMINI_API_KEY=your-gemini-api-key
-PORT=3000
-```
-
-## 📝 Database Schema
-
-### Key Collections
-
-- **Users**: User profiles, payment status, streaks
-- **Courses**: Course information and metadata
-- **Units/Sections/Lessons**: Hierarchical course structure
-- **UserProgress**: Individual progress tracking
-- **UserActivity**: Activity logging for analytics
-- **LevelCheck**: Essay submissions and evaluations
-- **Payments**: Payment transaction records
-- **CourseRatings**: User ratings and reviews
 
 ---
 
