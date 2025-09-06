@@ -16,6 +16,10 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { LevelCheckerService } from './level-checker.service';
 import { SubmitEssayDto } from './dto/submit-essay.dto';
+import {
+  SubmitWritingTask1Dto,
+  WritingTask1ResponseDto,
+} from './dto/writing-task1.dto';
 
 // Response DTOs for Swagger
 export class TopicResponseDto {
@@ -63,16 +67,18 @@ export class EvaluationResponseDto {
 export class LevelCheckerController {
   constructor(private readonly levelCheckerService: LevelCheckerService) {}
 
-  @Get()
+  // Writing Task 2 endpoints
+  @Get('writing-2')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Get writing topic',
-    description: 'Generates a random IELTS Writing Task 2 topic using ChatGPT',
+    summary: 'Get Writing Task 2 topic',
+    description:
+      'Generates a personalized IELTS Writing Task 2 topic based on user interests',
   })
   @ApiResponse({
     status: 200,
-    description: 'Writing topic generated successfully',
+    description: 'Writing Task 2 topic generated successfully',
     type: TopicResponseDto,
   })
   @ApiResponse({
@@ -80,20 +86,22 @@ export class LevelCheckerController {
     description: 'Unauthorized - Invalid or missing JWT token',
   })
   @ApiResponse({ status: 400, description: 'Failed to generate topic' })
-  async getTopic(@Request() req) {
-    return this.levelCheckerService.generateWritingTopic();
+  async getWritingTask2Topic(@Request() req) {
+    return this.levelCheckerService.generateWritingTask2Topic(req.user.sub);
   }
 
-  // src/level-checker/level-checker.controller.ts - update the POST method:
-  @Post()
+  @Post('writing-2')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Submit essay for evaluation',
+    summary: 'Submit Writing Task 2 essay for evaluation',
     description:
-      'Evaluates the submitted essay using Gemini AI and saves the submission to database',
+      'Evaluates the submitted Writing Task 2 essay using Gemini AI and saves the submission to database',
   })
-  @ApiResponse({ status: 200, description: 'Essay evaluated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Writing Task 2 essay evaluated successfully',
+  })
   @ApiResponse({
     status: 400,
     description: 'Validation error or evaluation failed',
@@ -102,12 +110,72 @@ export class LevelCheckerController {
     status: 401,
     description: 'Unauthorized - Invalid or missing JWT token',
   })
-  async submitEssay(@Request() req, @Body() submitEssayDto: SubmitEssayDto) {
-    return this.levelCheckerService.evaluateEssay(
+  async submitWritingTask2Essay(
+    @Request() req,
+    @Body() submitEssayDto: SubmitEssayDto,
+  ) {
+    return this.levelCheckerService.evaluateWritingTask2Essay(
       req.user.sub,
       submitEssayDto.topic,
       submitEssayDto.essay,
       submitEssayDto.timeSpent,
+    );
+  }
+
+  // Writing Task 1 endpoints
+  @Get('writing-1')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get Writing Task 1 topic with chart',
+    description:
+      'Generates a random IELTS Writing Task 1 topic with AI-generated chart using Chart.js',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Writing Task 1 topic and chart generated successfully',
+    type: WritingTask1ResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
+  @ApiResponse({ status: 400, description: 'Failed to generate topic' })
+  async getWritingTask1Topic(@Request() req) {
+    return this.levelCheckerService.generateWritingTask1Topic(req.user.sub);
+  }
+
+  @Post('writing-1')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Submit Writing Task 1 response for evaluation',
+    description:
+      'Evaluates the submitted Writing Task 1 response using Gemini AI and saves the submission to database',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Writing Task 1 response evaluated successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error or evaluation failed',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
+  async submitWritingTask1Essay(
+    @Request() req,
+    @Body() submitWritingTask1Dto: SubmitWritingTask1Dto,
+  ) {
+    return this.levelCheckerService.evaluateWritingTask1Essay(
+      req.user.sub,
+      submitWritingTask1Dto.question,
+      submitWritingTask1Dto.imageUrl,
+      submitWritingTask1Dto.taskType,
+      submitWritingTask1Dto.answer,
+      submitWritingTask1Dto.timeSpent,
     );
   }
 }
