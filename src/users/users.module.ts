@@ -6,10 +6,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { User, UserSchema } from './schemas/user.schema';
+import { Interest, InterestSchema } from '../admin/schemas/interest.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: Interest.name, schema: InterestSchema },
+    ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

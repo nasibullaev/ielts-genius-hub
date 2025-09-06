@@ -8,6 +8,9 @@ import {
   Param,
   UseGuards,
   Query,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,7 +18,11 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiProperty,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { interestMulterConfig } from '../common/config/interest-multer.config';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { AdminService } from './admin.service';
@@ -27,6 +34,10 @@ import {
   UpdateQuizQuestionDto,
 } from './dto/create-quiz-question.dto';
 import { CreateBulkQuestionsDto } from './dto/bulk-quiz-questions.dto';
+import {
+  CreateInterestDto,
+  UpdateInterestDto,
+} from './dto/create-interest.dto';
 
 export class DashboardStatsDto {
   @ApiProperty({ example: 1250 })
@@ -267,5 +278,147 @@ export class AdminController {
   @ApiOperation({ summary: 'Get all questions in quiz lesson' })
   async getQuizQuestions(@Param('lessonId') lessonId: string) {
     return this.adminService.getQuizQuestions(lessonId);
+  }
+
+  // ========== INTEREST MANAGEMENT ==========
+  @Post('interests')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseInterceptors(FileInterceptor('icon', interestMulterConfig))
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Create new interest topic with icon upload' })
+  @ApiBody({
+    description: 'Interest data with icon file',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', example: 'IELTS Speaking' },
+        isActive: {
+          type: 'string',
+          example: 'true',
+          description: 'Boolean as string: "true", "false", "1", or "0"',
+        },
+        icon: {
+          type: 'string',
+          format: 'binary',
+          description: 'SVG icon file (max 1MB)',
+        },
+      },
+      required: ['name', 'icon'],
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Interest created successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        _id: { type: 'string' },
+        name: { type: 'string', example: 'IELTS Speaking' },
+        icon: {
+          type: 'string',
+          example: '/uploads/icons/interest-1693492800.svg',
+        },
+        isActive: { type: 'boolean', example: true },
+        userCount: { type: 'number', example: 0 },
+        createdAt: { type: 'string' },
+        updatedAt: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid file or validation error' })
+  async createInterest(
+    @Body() createInterestDto: CreateInterestDto,
+    @UploadedFile() icon: Express.Multer.File,
+  ) {
+    if (!icon) {
+      throw new BadRequestException('Interest icon is required');
+    }
+
+    const iconUrl = `/uploads/icons/${icon.filename}`;
+    return this.adminService.createInterest(createInterestDto, iconUrl);
+  }
+
+  @Get('interests')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all interests (admin view with stats)' })
+  @ApiResponse({
+    status: 200,
+    description: 'All interests retrieved',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          _id: { type: 'string' },
+          name: { type: 'string' },
+          icon: { type: 'string' },
+          isActive: { type: 'boolean' },
+          userCount: { type: 'number' },
+          createdAt: { type: 'string' },
+          updatedAt: { type: 'string' },
+        },
+      },
+    },
+  })
+  async getAllInterests() {
+    return this.adminService.getAllInterests();
+  }
+
+  @Put('interests/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseInterceptors(FileInterceptor('icon', interestMulterConfig))
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Update interest with optional icon upload' })
+  @ApiBody({
+    description: 'Interest update data with optional icon file',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', example: 'IELTS Speaking Updated' },
+        isActive: {
+          type: 'string',
+          example: 'true',
+          description: 'Boolean as string: "true", "false", "1", or "0"',
+        },
+        icon: {
+          type: 'string',
+          format: 'binary',
+          description: 'New SVG icon file (optional, max 1MB)',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Interest updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid file or validation error' })
+  @ApiResponse({ status: 404, description: 'Interest not found' })
+  async updateInterest(
+    @Param('id') id: string,
+    @Body() updateInterestDto: UpdateInterestDto,
+    @UploadedFile() icon?: Express.Multer.File,
+  ) {
+    let iconUrl: string | undefined;
+
+    if (icon) {
+      iconUrl = `/uploads/icons/${icon.filename}`;
+    }
+
+    return this.adminService.updateInterest(id, updateInterestDto, iconUrl);
+  }
+
+  @Delete('interests/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete interest' })
+  @ApiResponse({ status: 200, description: 'Interest deleted successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Cannot delete interest with users',
+  })
+  @ApiResponse({ status: 404, description: 'Interest not found' })
+  async deleteInterest(@Param('id') id: string) {
+    return this.adminService.deleteInterest(id);
   }
 }

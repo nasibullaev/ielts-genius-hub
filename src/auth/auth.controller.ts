@@ -23,10 +23,21 @@ export class LoginResponseDto {
       email: 'john@example.com',
       phone: '+998901234567',
       role: 'student',
+      isPaid: false,
+      subscriptionExpiry: '2024-12-31T23:59:59.000Z',
+      currentStreak: 5,
+      lastActivityDate: '2024-01-20T15:45:00.000Z',
+      interests: [
+        {
+          _id: '68bbf88787a1e5dce79068d5',
+          name: 'IELTS Speaking',
+          icon: '/uploads/icons/speaking.svg',
+        },
+      ],
       createdAt: '2024-01-15T10:30:00.000Z',
-      updatedAt: '2024-01-15T10:30:00.000Z',
+      updatedAt: '2024-01-20T15:45:00.000Z',
     },
-    description: 'User profile information (without password)',
+    description: 'User profile information with interests (without password)',
   })
   user: object;
 }
@@ -39,6 +50,9 @@ export class RegisterResponseDto {
       email: 'john@example.com',
       phone: '+998901234567',
       role: 'student',
+      isPaid: false,
+      currentStreak: 0,
+      interests: [],
       createdAt: '2024-01-15T10:30:00.000Z',
       updatedAt: '2024-01-15T10:30:00.000Z',
     },

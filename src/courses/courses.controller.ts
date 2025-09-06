@@ -36,9 +36,40 @@ export class CoursesController {
 
   @Get()
   @ApiOperation({
-    summary: 'Get all courses (Public + User progress if authenticated)',
+    summary: 'Get all courses',
+    description:
+      'Retrieves all available courses with user progress if authenticated. Public endpoint.',
   })
-  @ApiResponse({ status: 200, description: 'Courses retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Courses retrieved successfully',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          _id: { type: 'string' },
+          title: { type: 'string', example: 'IELTS Speaking Mastery' },
+          description: {
+            type: 'string',
+            example: 'Complete IELTS Speaking preparation',
+          },
+          duration: { type: 'string', example: '15 hours' },
+          level: { type: 'string', example: 'Intermediate' },
+          rating: { type: 'number', example: 4.5 },
+          totalLessons: { type: 'number', example: 25 },
+          picture: {
+            type: 'string',
+            example: '/uploads/courses/course-123.jpg',
+          },
+          userProgress: {
+            type: 'object',
+            description: 'Only present if user is authenticated',
+          },
+        },
+      },
+    },
+  })
   async findAll(@Request() req) {
     const userId = req.user?.sub;
     return this.coursesService.findAll(userId);

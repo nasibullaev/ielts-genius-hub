@@ -35,8 +35,20 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    // Remove password
-    const { password: _, ...userWithoutPassword } = user;
+
+    // Populate interests for the response
+    const userWithInterests = await this.usersService.findByIdWithInterests(
+      user._id.toString(),
+    );
+
+    if (!userWithInterests) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Remove password and convert to plain object
+    const { password: _, ...userWithoutPassword } = (
+      userWithInterests as any
+    ).toObject();
     const payload = { sub: user._id, role: user.role };
 
     return {
@@ -60,11 +72,8 @@ export class AuthService {
       role,
     );
 
-    // Convert mongoose doc to plain object if possible
-    const userObj = (newUser as any).toObject
-      ? (newUser as any).toObject()
-      : newUser;
-    // generate access token
+    // Convert mongoose doc to plain object and remove password
+    const userObj = (newUser as any).toObject();
     const { password: _, ...result } = userObj;
     const payload = { sub: result._id, role: result.role };
     const access_token = this.jwtService.sign(payload);

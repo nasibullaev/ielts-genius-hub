@@ -23,6 +23,7 @@ import {
   QuizQuestion,
   QuizQuestionSchema,
 } from '../lessons/schemas/quiz-question.schema';
+import { Interest, InterestSchema } from './schemas/interest.schema';
 
 @Module({
   imports: [
@@ -32,10 +33,11 @@ import {
       { name: Course.name, schema: CourseSchema },
       { name: CourseRating.name, schema: CourseRatingSchema },
       { name: LevelCheck.name, schema: LevelCheckSchema },
-      { name: Unit.name, schema: UnitSchema }, // ✅ Add these
+      { name: Unit.name, schema: UnitSchema },
       { name: Section.name, schema: SectionSchema },
       { name: Lesson.name, schema: LessonSchema },
       { name: QuizQuestion.name, schema: QuizQuestionSchema },
+      { name: Interest.name, schema: InterestSchema },
     ]),
   ],
   controllers: [AdminController],

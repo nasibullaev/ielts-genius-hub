@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type UserDocument = User & Document;
 
@@ -35,6 +35,18 @@ export class User {
 
   @Prop()
   lastActivityDate?: Date; // ✅ For streak calculation
+
+  @Prop({
+    type: [{ type: Types.ObjectId, ref: 'Interest' }],
+    default: [],
+    validate: {
+      validator: function (interests: Types.ObjectId[]) {
+        return interests.length <= 3;
+      },
+      message: 'User can select maximum 3 interests',
+    },
+  })
+  interests: Types.ObjectId[]; // ✅ User's selected interests (max 3)
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

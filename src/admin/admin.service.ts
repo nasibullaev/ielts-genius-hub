@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import * as fs from 'fs';
+import { join } from 'path';
 import { User } from '../users/schemas/user.schema';
 import { UserActivity } from '../users/schemas/user-activity.schema';
 import { Course } from '../courses/schemas/course.schema';
@@ -14,7 +16,12 @@ import { Section } from '../courses/schemas/section.schema';
 import { Lesson } from '../lessons/schemas/lesson.schema';
 import { QuizQuestion } from '../lessons/schemas/quiz-question.schema';
 import { LevelCheck } from '../level-checker/schemas/level-check.schema';
+import { Interest } from './schemas/interest.schema';
 import { CreateBulkQuestionsDto } from './dto/bulk-quiz-questions.dto';
+import {
+  CreateInterestDto,
+  UpdateInterestDto,
+} from './dto/create-interest.dto';
 
 @Injectable()
 export class AdminService {
@@ -29,6 +36,7 @@ export class AdminService {
     @InjectModel(Lesson.name) private lessonModel: Model<Lesson>,
     @InjectModel(QuizQuestion.name)
     private quizQuestionModel: Model<QuizQuestion>,
+    @InjectModel(Interest.name) private interestModel: Model<Interest>,
   ) {}
 
   // Update the method with explicit typing:
@@ -222,5 +230,72 @@ export class AdminService {
 
   async getQuizQuestions(lessonId: string) {
     return this.quizQuestionModel.find({ lessonId }).sort({ order: 1 });
+  }
+
+  // ========== INTEREST METHODS ==========
+  async createInterest(createInterestDto, iconUrl: string) {
+    // Convert string isActive to boolean
+    let isActive = true; // default value
+    if (createInterestDto.isActive !== undefined) {
+      isActive =
+        createInterestDto.isActive === 'true' ||
+        createInterestDto.isActive === '1';
+    }
+
+    const interest = new this.interestModel({
+      name: createInterestDto.name,
+      icon: iconUrl,
+      isActive,
+    });
+    return interest.save();
+  }
+
+  async getAllInterests() {
+    return this.interestModel.find().sort({ createdAt: -1 });
+  }
+
+  async updateInterest(id: string, updateData, iconUrl?: string) {
+    // Convert string isActive to boolean if provided
+    let processedUpdateData = { ...updateData };
+
+    if (updateData.isActive !== undefined) {
+      processedUpdateData.isActive =
+        updateData.isActive === 'true' || updateData.isActive === '1';
+    }
+
+    // Add icon URL if provided
+    if (iconUrl) {
+      processedUpdateData.icon = iconUrl;
+    }
+
+    const updatedInterest = await this.interestModel.findByIdAndUpdate(
+      id,
+      processedUpdateData,
+      { new: true },
+    );
+    if (!updatedInterest) {
+      throw new NotFoundException('Interest not found');
+    }
+    return updatedInterest;
+  }
+
+  async deleteInterest(id: string) {
+    // Check if any users have selected this interest
+    const usersWithInterest = await this.userModel.countDocuments({
+      interests: id,
+    });
+
+    if (usersWithInterest > 0) {
+      throw new BadRequestException(
+        `Cannot delete interest. ${usersWithInterest} users have selected this interest.`,
+      );
+    }
+
+    const deletedInterest = await this.interestModel.findByIdAndDelete(id);
+    if (!deletedInterest) {
+      throw new NotFoundException('Interest not found');
+    }
+
+    return { message: 'Interest deleted successfully' };
   }
 }
