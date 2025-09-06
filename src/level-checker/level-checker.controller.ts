@@ -20,6 +20,11 @@ import {
   SubmitWritingTask1Dto,
   WritingTask1ResponseDto,
 } from './dto/writing-task1.dto';
+import {
+  SubmitListeningDto,
+  ListeningResponseDto,
+  ListeningEvaluationResponseDto,
+} from './dto/listening.dto';
 
 // Response DTOs for Swagger
 export class TopicResponseDto {
@@ -176,6 +181,65 @@ export class LevelCheckerController {
       submitWritingTask1Dto.taskType,
       submitWritingTask1Dto.answer,
       submitWritingTask1Dto.timeSpent,
+    );
+  }
+
+  // Listening endpoints
+  @Get('listening')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get Listening test with text and questions',
+    description:
+      'Generates a personalized IELTS Listening test with text and questions based on user interests',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Listening test generated successfully',
+    type: ListeningResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to generate listening test',
+  })
+  async getListeningTest(@Request() req) {
+    return this.levelCheckerService.generateListeningTopic(req.user.sub);
+  }
+
+  @Post('listening')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Submit Listening test answers for evaluation',
+    description:
+      'Evaluates the submitted Listening test answers against the stored correct answers and provides detailed feedback with IELTS band score',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Listening test evaluated successfully',
+    type: ListeningEvaluationResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error, test not found, or evaluation failed',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
+  async submitListeningAnswers(
+    @Request() req,
+    @Body() submitListeningDto: SubmitListeningDto,
+  ) {
+    return this.levelCheckerService.evaluateListeningAnswers(
+      req.user.sub,
+      submitListeningDto.testId,
+      submitListeningDto.userAnswers,
+      submitListeningDto.timeSpent,
     );
   }
 }

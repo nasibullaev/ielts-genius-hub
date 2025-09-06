@@ -9,6 +9,12 @@ import {
   WritingTask1,
   WritingTask1Schema,
 } from './schemas/writing-task1.schema';
+import {
+  ListeningTest,
+  ListeningTestSchema,
+  ListeningSubmission,
+  ListeningSubmissionSchema,
+} from './schemas/listening.schema';
 import { ChartGenerationService } from './services/chart-generation.service';
 
 @Module({
@@ -18,6 +24,8 @@ import { ChartGenerationService } from './services/chart-generation.service';
       { name: LevelCheck.name, schema: LevelCheckSchema },
       { name: User.name, schema: UserSchema },
       { name: WritingTask1.name, schema: WritingTask1Schema },
+      { name: ListeningTest.name, schema: ListeningTestSchema },
+      { name: ListeningSubmission.name, schema: ListeningSubmissionSchema },
     ]),
   ],
   controllers: [LevelCheckerController],
