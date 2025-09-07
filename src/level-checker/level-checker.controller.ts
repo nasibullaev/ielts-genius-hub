@@ -5,6 +5,9 @@ import {
   Body,
   UseGuards,
   Request,
+  UseInterceptors,
+  UploadedFiles,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -12,9 +15,12 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiProperty,
+  ApiConsumes,
 } from '@nestjs/swagger';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { LevelCheckerService } from './level-checker.service';
+import { SpeechToTextService } from './services/speech-to-text.service';
 import { SubmitEssayDto } from './dto/submit-essay.dto';
 import {
   SubmitWritingTask1Dto,
@@ -30,6 +36,11 @@ import {
   ReadingResponseDto,
   ReadingEvaluationResponseDto,
 } from './dto/reading.dto';
+import {
+  SubmitSpeakingDto,
+  SpeakingResponseDto,
+  SpeakingEvaluationResponseDto,
+} from './dto/speaking.dto';
 
 // Response DTOs for Swagger
 export class TopicResponseDto {
@@ -75,7 +86,10 @@ export class EvaluationResponseDto {
 @ApiTags('level-checker')
 @Controller('level-checker')
 export class LevelCheckerController {
-  constructor(private readonly levelCheckerService: LevelCheckerService) {}
+  constructor(
+    private readonly levelCheckerService: LevelCheckerService,
+    private readonly speechToTextService: SpeechToTextService,
+  ) {}
 
   // Writing Task 2 endpoints
   @Get('writing-2')
@@ -304,6 +318,99 @@ export class LevelCheckerController {
       submitReadingDto.testId,
       submitReadingDto.userAnswers,
       submitReadingDto.timeSpent,
+    );
+  }
+
+  // Speaking endpoints
+  @Get('speaking')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get Speaking test with questions',
+    description:
+      'Generates a personalized IELTS Speaking test with questions based on user interests',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Speaking test generated successfully',
+    type: SpeakingResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to generate speaking test',
+  })
+  async getSpeakingTest(@Request() req) {
+    return this.levelCheckerService.generateSpeakingTopic(req.user.sub);
+  }
+
+  @Post('speaking')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseInterceptors(FilesInterceptor('audioFiles', 3)) // Allow up to 3 audio files
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Submit Speaking test audio files for evaluation',
+    description:
+      'Converts audio files to text using speech-to-text, then evaluates the transcribed responses using AI and provides detailed feedback with IELTS band score',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Speaking test evaluated successfully',
+    type: SpeakingEvaluationResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Validation error, test not found, audio processing failed, or evaluation failed',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
+  async submitSpeakingAnswers(
+    @Request() req,
+    @Body() submitSpeakingDto: SubmitSpeakingDto,
+    @UploadedFiles() audioFiles: Express.Multer.File[],
+  ) {
+    // Validate audio files
+    if (!audioFiles || audioFiles.length === 0) {
+      throw new BadRequestException('No audio files provided');
+    }
+
+    if (audioFiles.length !== 3) {
+      throw new BadRequestException('Exactly 3 audio files are required');
+    }
+
+    // Validate each audio file
+    for (const audioFile of audioFiles) {
+      if (!this.speechToTextService.validateAudioFile(audioFile)) {
+        throw new BadRequestException(
+          `Invalid audio file: ${audioFile.originalname}. Supported formats: WAV, MP3, OGG, WEBM, FLAC, M4A. Max size: 10MB`,
+        );
+      }
+    }
+
+    // Convert audio files to text
+    const userAnswers =
+      await this.speechToTextService.convertMultipleAudioToText(audioFiles);
+
+    // Check if any transcription failed
+    const failedTranscriptions = userAnswers.filter((answer) => answer === '');
+    if (failedTranscriptions.length > 0) {
+      throw new BadRequestException(
+        `Failed to transcribe ${failedTranscriptions.length} audio file(s). Please ensure the audio is clear and contains speech.`,
+      );
+    }
+
+    return this.levelCheckerService.evaluateSpeakingAnswers(
+      req.user.sub,
+      submitSpeakingDto.testId,
+      userAnswers,
+      submitSpeakingDto.timeSpent,
     );
   }
 }

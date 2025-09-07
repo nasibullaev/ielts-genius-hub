@@ -8,6 +8,7 @@ import { User } from '../users/schemas/user.schema';
 import { WritingTask1 } from './schemas/writing-task1.schema';
 import { ListeningTest, ListeningSubmission } from './schemas/listening.schema';
 import { ReadingTest, ReadingSubmission } from './schemas/reading.schema';
+import { SpeakingTest, SpeakingSubmission } from './schemas/speaking.schema';
 import { ChartGenerationService } from './services/chart-generation.service';
 
 @Injectable()
@@ -29,6 +30,10 @@ export class LevelCheckerService {
     private readingTestModel: Model<ReadingTest>,
     @InjectModel(ReadingSubmission.name)
     private readingSubmissionModel: Model<ReadingSubmission>,
+    @InjectModel(SpeakingTest.name)
+    private speakingTestModel: Model<SpeakingTest>,
+    @InjectModel(SpeakingSubmission.name)
+    private speakingSubmissionModel: Model<SpeakingSubmission>,
     private chartGenerationService: ChartGenerationService,
   ) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -945,6 +950,405 @@ Return your response in this EXACT JSON format (no additional text):
     if (incorrectCount > 5) {
       suggestions.push('Focus on improving vocabulary recognition');
       suggestions.push('Practice reading comprehension with time limits');
+    }
+
+    return suggestions.length > 0
+      ? suggestions
+      : ['Keep practicing to maintain your current level'];
+  }
+
+  // Speaking methods
+  async generateSpeakingTopic(userId: string): Promise<{
+    testId: string;
+    questions: Array<{
+      question: string;
+      questionType: string;
+      instructions: string;
+      guidance: string;
+    }>;
+  }> {
+    try {
+      // Fetch user interests
+      const user = await this.userModel
+        .findById(userId)
+        .select('interests')
+        .lean()
+        .exec();
+      const userInterests = user?.interests
+        ? user.interests.map((interest) => interest.toString())
+        : ['technology', 'education', 'health', 'environment'];
+
+      const prompt = `You are an IELTS Speaking test generator. Generate speaking questions based on the user's interests.
+
+User Interests: ${userInterests.length > 0 ? userInterests.join(', ') : 'General topics'}
+
+Generate 3 speaking questions following IELTS format:
+
+1. Personal Introduction Question (Part 1):
+   - Simple, personal question related to user interests
+   - Should be easy to answer and help warm up
+
+2. Individual Long Turn Question (Part 2):
+   - Cue card style question
+   - Should allow 2-minute speaking time
+   - Related to user interests when possible
+
+3. Two-way Discussion Question (Part 3):
+   - Abstract, analytical question
+   - Should encourage discussion and opinion
+   - Related to user interests when possible
+
+For each question, provide:
+- The question text
+- Question type (personal_introduction, individual_long_turn, two_way_discussion)
+- Instructions for timing and speaking
+- Guidance on what to include in the answer
+
+Return your response in this EXACT JSON format (no additional text):
+{
+  "questions": [
+    {
+      "question": "Tell me about your hometown.",
+      "questionType": "personal_introduction",
+      "instructions": "You have 1-2 minutes to speak. Answer naturally and give personal examples.",
+      "guidance": "Talk about your hometown, including its location, population, and what you like about it."
+    },
+    {
+      "question": "Describe a book you recently read that influenced your thinking.",
+      "questionType": "individual_long_turn",
+      "instructions": "You have 2 minutes to speak. You should talk about the topic continuously.",
+      "guidance": "Describe the book, explain how it influenced you, and discuss its impact on your perspective."
+    },
+    {
+      "question": "Do you think technology has made communication better or worse?",
+      "questionType": "two_way_discussion",
+      "instructions": "You have 3-4 minutes to discuss. Give your opinion with reasons and examples.",
+      "guidance": "Discuss both positive and negative aspects, provide examples, and explain your viewpoint."
+    }
+  ]
+}`;
+
+      const result = await this.model.generateContent(prompt);
+      const response = result.response.text().trim();
+
+      if (!response) {
+        throw new BadRequestException('Failed to generate speaking content');
+      }
+
+      try {
+        const cleanResponse = response.replace(/```json\n?|\n?```/g, '').trim();
+        const speakingContent = JSON.parse(cleanResponse);
+
+        // Validate the response structure
+        if (!speakingContent.questions) {
+          throw new BadRequestException('Invalid response format from AI');
+        }
+
+        // Generate unique test ID
+        const testId = `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        // Save the test to database
+        const speakingTest = new this.speakingTestModel({
+          questions: speakingContent.questions,
+          testId,
+        });
+
+        await speakingTest.save();
+
+        return {
+          testId,
+          questions: speakingContent.questions,
+        };
+      } catch (parseError) {
+        console.error('Failed to parse Gemini response:', response);
+        throw new BadRequestException('Invalid response format from AI');
+      }
+    } catch (error) {
+      console.error('Gemini API Error:', error);
+      throw new BadRequestException('Failed to generate speaking content');
+    }
+  }
+
+  async evaluateSpeakingAnswers(
+    userId: string,
+    testId: string,
+    userAnswers: string[],
+    timeSpent: string,
+  ): Promise<{
+    overallBand: string;
+    fluencyCoherence: string;
+    lexicalResource: string;
+    grammaticalRange: string;
+    pronunciation: string;
+    feedback: string;
+    suggestions: string[];
+    detailedResults: Array<{
+      questionIndex: number;
+      question: string;
+      userAnswer: string;
+      fluencyScore: string;
+      vocabularyScore: string;
+      grammarScore: string;
+      pronunciationScore: string;
+      feedback: string;
+    }>;
+    submissionId: string;
+  }> {
+    try {
+      // Find the speaking test by testId
+      const speakingTest = await this.speakingTestModel.findOne({ testId });
+      if (!speakingTest) {
+        throw new BadRequestException('Speaking test not found');
+      }
+
+      // Evaluate each answer using AI
+      const detailedResults: Array<{
+        questionIndex: number;
+        question: string;
+        userAnswer: string;
+        fluencyScore: string;
+        vocabularyScore: string;
+        grammarScore: string;
+        pronunciationScore: string;
+        feedback: string;
+      }> = [];
+
+      for (let i = 0; i < speakingTest.questions.length; i++) {
+        const question = speakingTest.questions[i];
+        const userAnswer = userAnswers[i] || '';
+
+        const evaluation = await this.evaluateSpeakingAnswer(
+          question.question,
+          question.questionType,
+          userAnswer,
+        );
+
+        detailedResults.push({
+          questionIndex: i,
+          question: question.question,
+          userAnswer: userAnswer,
+          fluencyScore: evaluation.fluencyCoherence,
+          vocabularyScore: evaluation.lexicalResource,
+          grammarScore: evaluation.grammaticalRange,
+          pronunciationScore: evaluation.pronunciation,
+          feedback: evaluation.feedback,
+        });
+      }
+
+      // Calculate overall scores
+      const fluencyScores = detailedResults.map((r) =>
+        parseFloat(r.fluencyScore),
+      );
+      const vocabularyScores = detailedResults.map((r) =>
+        parseFloat(r.vocabularyScore),
+      );
+      const grammarScores = detailedResults.map((r) =>
+        parseFloat(r.grammarScore),
+      );
+      const pronunciationScores = detailedResults.map((r) =>
+        parseFloat(r.pronunciationScore),
+      );
+
+      const avgFluency =
+        fluencyScores.reduce((a, b) => a + b, 0) / fluencyScores.length;
+      const avgVocabulary =
+        vocabularyScores.reduce((a, b) => a + b, 0) / vocabularyScores.length;
+      const avgGrammar =
+        grammarScores.reduce((a, b) => a + b, 0) / grammarScores.length;
+      const avgPronunciation =
+        pronunciationScores.reduce((a, b) => a + b, 0) /
+        pronunciationScores.length;
+
+      const overallBand = (
+        (avgFluency + avgVocabulary + avgGrammar + avgPronunciation) /
+        4
+      ).toFixed(1);
+
+      // Generate overall feedback and suggestions
+      const feedback = this.generateSpeakingFeedback(
+        overallBand,
+        detailedResults,
+      );
+      const suggestions = this.generateSpeakingSuggestions(detailedResults);
+
+      // Save submission to database
+      const speakingSubmission = new this.speakingSubmissionModel({
+        userId: new Types.ObjectId(userId),
+        testId,
+        userAnswers,
+        overallBand,
+        fluencyCoherence: avgFluency.toFixed(1),
+        lexicalResource: avgVocabulary.toFixed(1),
+        grammaticalRange: avgGrammar.toFixed(1),
+        pronunciation: avgPronunciation.toFixed(1),
+        detailedResults,
+        feedback,
+        suggestions,
+        timeSpent,
+      });
+
+      const savedSubmission = await speakingSubmission.save();
+
+      return {
+        overallBand,
+        fluencyCoherence: avgFluency.toFixed(1),
+        lexicalResource: avgVocabulary.toFixed(1),
+        grammaticalRange: avgGrammar.toFixed(1),
+        pronunciation: avgPronunciation.toFixed(1),
+        feedback,
+        suggestions,
+        detailedResults,
+        submissionId: (savedSubmission._id as Types.ObjectId).toString(),
+      };
+    } catch (error) {
+      console.error('Error evaluating speaking answers:', error);
+      throw new BadRequestException('Failed to evaluate speaking answers');
+    }
+  }
+
+  private async evaluateSpeakingAnswer(
+    question: string,
+    questionType: string,
+    userAnswer: string,
+  ): Promise<{
+    fluencyCoherence: string;
+    lexicalResource: string;
+    grammaticalRange: string;
+    pronunciation: string;
+    feedback: string;
+  }> {
+    const prompt = `You are an experienced IELTS Speaking examiner. Evaluate this speaking response based on the official IELTS band descriptors.
+
+Question: ${question}
+Question Type: ${questionType}
+Response: ${userAnswer}
+
+Evaluate on the four criteria (1-9 band scale):
+1. Fluency and Coherence (FC) - Flow, coherence, hesitation
+2. Lexical Resource (LR) - Vocabulary range and accuracy
+3. Grammatical Range and Accuracy (GRA) - Grammar variety and accuracy
+4. Pronunciation (P) - Clarity, stress, intonation
+
+IMPORTANT: Return ONLY a valid JSON object with no additional text, explanations, or formatting. The response must be parseable JSON.
+
+{
+  "fluencyCoherence": "7.0",
+  "lexicalResource": "6.5",
+  "grammaticalRange": "7.0",
+  "pronunciation": "7.5",
+  "feedback": "Good response with clear communication and appropriate vocabulary"
+}`;
+
+    let response = '';
+    try {
+      const result = await this.model.generateContent(prompt);
+      response = result.response.text().trim();
+
+      // More robust JSON parsing
+      let cleanResponse = response;
+
+      // Remove common JSON formatting issues
+      cleanResponse = cleanResponse.replace(/```json\n?|\n?```/g, '').trim();
+      cleanResponse = cleanResponse.replace(/^```|```$/g, '').trim();
+
+      // Try to find JSON object in the response
+      const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanResponse = jsonMatch[0];
+      }
+
+      const parsed = JSON.parse(cleanResponse);
+
+      // Validate required fields
+      if (
+        !parsed.fluencyCoherence ||
+        !parsed.lexicalResource ||
+        !parsed.grammaticalRange ||
+        !parsed.pronunciation ||
+        !parsed.feedback
+      ) {
+        throw new Error('Missing required fields in AI response');
+      }
+
+      return parsed;
+    } catch (parseError) {
+      console.error('Failed to parse speaking evaluation:', parseError);
+      console.error('Raw AI response:', response || 'No response');
+
+      // Return default scores if parsing fails
+      return {
+        fluencyCoherence: '6.0',
+        lexicalResource: '6.0',
+        grammaticalRange: '6.0',
+        pronunciation: '6.0',
+        feedback: 'Unable to evaluate response properly due to parsing error.',
+      };
+    }
+  }
+
+  private generateSpeakingFeedback(
+    overallBand: string,
+    detailedResults: Array<{ feedback: string }>,
+  ): string {
+    const band = parseFloat(overallBand);
+
+    if (band >= 8.0) {
+      return `Excellent performance! You achieved Band ${overallBand}, demonstrating advanced speaking skills with clear communication, sophisticated vocabulary, and accurate grammar.`;
+    } else if (band >= 7.0) {
+      return `Good performance! You achieved Band ${overallBand}, showing effective communication with good vocabulary range and grammatical accuracy.`;
+    } else if (band >= 6.0) {
+      return `Fair performance. You achieved Band ${overallBand}, demonstrating adequate communication skills with room for improvement in fluency and vocabulary.`;
+    } else {
+      return `Needs improvement. You achieved Band ${overallBand}. Focus on developing basic communication skills and expanding your vocabulary.`;
+    }
+  }
+
+  private generateSpeakingSuggestions(
+    detailedResults: Array<{
+      fluencyScore: string;
+      vocabularyScore: string;
+      grammarScore: string;
+      pronunciationScore: string;
+    }>,
+  ): string[] {
+    const suggestions: string[] = [];
+
+    const avgFluency =
+      detailedResults.reduce((sum, r) => sum + parseFloat(r.fluencyScore), 0) /
+      detailedResults.length;
+    const avgVocabulary =
+      detailedResults.reduce(
+        (sum, r) => sum + parseFloat(r.vocabularyScore),
+        0,
+      ) / detailedResults.length;
+    const avgGrammar =
+      detailedResults.reduce((sum, r) => sum + parseFloat(r.grammarScore), 0) /
+      detailedResults.length;
+    const avgPronunciation =
+      detailedResults.reduce(
+        (sum, r) => sum + parseFloat(r.pronunciationScore),
+        0,
+      ) / detailedResults.length;
+
+    if (avgFluency < 7.0) {
+      suggestions.push(
+        'Practice speaking more fluently by reducing pauses and hesitations',
+      );
+    }
+    if (avgVocabulary < 7.0) {
+      suggestions.push(
+        'Expand your vocabulary range and practice using more sophisticated words',
+      );
+    }
+    if (avgGrammar < 7.0) {
+      suggestions.push(
+        'Work on using more complex grammatical structures accurately',
+      );
+    }
+    if (avgPronunciation < 7.0) {
+      suggestions.push(
+        'Focus on improving pronunciation, stress, and intonation patterns',
+      );
     }
 
     return suggestions.length > 0

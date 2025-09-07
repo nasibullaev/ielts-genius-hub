@@ -21,7 +21,14 @@ import {
   ReadingSubmission,
   ReadingSubmissionSchema,
 } from './schemas/reading.schema';
+import {
+  SpeakingTest,
+  SpeakingTestSchema,
+  SpeakingSubmission,
+  SpeakingSubmissionSchema,
+} from './schemas/speaking.schema';
 import { ChartGenerationService } from './services/chart-generation.service';
+import { SpeechToTextService } from './services/speech-to-text.service';
 
 @Module({
   imports: [
@@ -34,10 +41,12 @@ import { ChartGenerationService } from './services/chart-generation.service';
       { name: ListeningSubmission.name, schema: ListeningSubmissionSchema },
       { name: ReadingTest.name, schema: ReadingTestSchema },
       { name: ReadingSubmission.name, schema: ReadingSubmissionSchema },
+      { name: SpeakingTest.name, schema: SpeakingTestSchema },
+      { name: SpeakingSubmission.name, schema: SpeakingSubmissionSchema },
     ]),
   ],
   controllers: [LevelCheckerController],
-  providers: [LevelCheckerService, ChartGenerationService],
+  providers: [LevelCheckerService, ChartGenerationService, SpeechToTextService],
   exports: [LevelCheckerService],
 })
 export class LevelCheckerModule {}
