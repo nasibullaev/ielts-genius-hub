@@ -285,11 +285,11 @@ export class AdminService {
       interests: id,
     });
 
-    if (usersWithInterest > 0) {
-      throw new BadRequestException(
-        `Cannot delete interest. ${usersWithInterest} users have selected this interest.`,
-      );
-    }
+    // if (usersWithInterest > 0) {
+    //   throw new BadRequestException(
+    //     `Cannot delete interest. ${usersWithInterest} users have selected this interest.`,
+    //   );
+    // }
 
     const deletedInterest = await this.interestModel.findByIdAndDelete(id);
     if (!deletedInterest) {
