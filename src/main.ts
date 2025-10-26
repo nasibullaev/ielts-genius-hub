@@ -34,6 +34,15 @@ async function bootstrap() {
       ) {
         res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year cache
       }
+      // Set proper headers for audio files
+      if (
+        path.endsWith('.mp3') ||
+        path.endsWith('.wav') ||
+        path.endsWith('.ogg') ||
+        path.endsWith('.webm')
+      ) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year cache
+      }
     },
   });
 
@@ -84,5 +93,6 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port);
   console.log(`Server running on http://localhost:${port}`);
+  console.log(`Docs running on http://localhost:${port}/api/docs`);
 }
 bootstrap();

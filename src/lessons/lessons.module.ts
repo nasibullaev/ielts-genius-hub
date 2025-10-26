@@ -7,6 +7,7 @@ import {
   QuizQuestion,
   QuizQuestionSchema,
 } from './schemas/quiz-question.schema';
+import { Task, TaskSchema } from './schemas/task.schema';
 import {
   UserActivity,
   UserActivitySchema,
@@ -25,6 +26,7 @@ import { Course, CourseSchema } from '../courses/schemas/course.schema';
     MongooseModule.forFeature([
       { name: Lesson.name, schema: LessonSchema },
       { name: QuizQuestion.name, schema: QuizQuestionSchema },
+      { name: Task.name, schema: TaskSchema },
       { name: UserActivity.name, schema: UserActivitySchema },
       { name: UserProgress.name, schema: UserProgressSchema },
       { name: User.name, schema: UserSchema },

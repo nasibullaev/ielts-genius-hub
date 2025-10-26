@@ -17,6 +17,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { LessonsService } from './lessons.service';
 import { QuizAnswerDto } from './dto/quiz-answer.dto';
+import { TaskBatchSubmissionDto } from './dto/task-submit.dto';
 
 export class QuizResultDto {
   @ApiProperty({ example: 85 })
@@ -44,6 +45,39 @@ export class QuizResultDto {
     ],
   })
   results: object[];
+}
+
+export class TaskResultDto {
+  @ApiProperty({ example: 85, nullable: true })
+  overallScore: number | null;
+
+  @ApiProperty({ example: 8 })
+  correctAnswers: number;
+
+  @ApiProperty({ example: 10 })
+  totalQuestions: number;
+
+  @ApiProperty({
+    example: [
+      {
+        taskId: '64f8a1234567890abcdef123',
+        type: 'Multiple Choice (Reading)',
+        isCorrect: true,
+        score: 100,
+        feedback: 'Correct!',
+      },
+    ],
+  })
+  results: Array<{
+    taskId: string;
+    type: string;
+    isCorrect: boolean;
+    score: number;
+    feedback: string;
+  }>;
+
+  @ApiProperty({ example: 'You scored 85% (8/10)' })
+  message: string;
 }
 
 @ApiTags('lessons')
@@ -87,5 +121,24 @@ export class LessonsController {
     @Body() quizAnswers: QuizAnswerDto,
   ) {
     return this.lessonsService.submitQuiz(id, req.user.sub, quizAnswers);
+  }
+
+  @Post(':id/tasks')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Submit tasks for evaluation' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tasks submitted and evaluated',
+    type: TaskResultDto,
+  })
+  @ApiResponse({ status: 403, description: 'Payment required' })
+  @ApiResponse({ status: 404, description: 'Lesson not found' })
+  async submitTasks(
+    @Param('id') id: string,
+    @Request() req,
+    @Body() taskSubmissions: TaskBatchSubmissionDto,
+  ) {
+    return this.lessonsService.submitTasks(id, req.user.sub, taskSubmissions);
   }
 }

@@ -23,6 +23,7 @@ import {
   QuizQuestion,
   QuizQuestionSchema,
 } from '../lessons/schemas/quiz-question.schema';
+import { Task, TaskSchema } from '../lessons/schemas/task.schema';
 import { Interest, InterestSchema } from './schemas/interest.schema';
 
 @Module({
@@ -37,6 +38,7 @@ import { Interest, InterestSchema } from './schemas/interest.schema';
       { name: Section.name, schema: SectionSchema },
       { name: Lesson.name, schema: LessonSchema },
       { name: QuizQuestion.name, schema: QuizQuestionSchema },
+      { name: Task.name, schema: TaskSchema },
       { name: Interest.name, schema: InterestSchema },
     ]),
   ],

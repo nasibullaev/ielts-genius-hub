@@ -15,6 +15,7 @@ import { Unit } from '../courses/schemas/unit.schema';
 import { Section } from '../courses/schemas/section.schema';
 import { Lesson } from '../lessons/schemas/lesson.schema';
 import { QuizQuestion } from '../lessons/schemas/quiz-question.schema';
+import { Task } from '../lessons/schemas/task.schema';
 import { LevelCheck } from '../level-checker/schemas/level-check.schema';
 import { Interest } from './schemas/interest.schema';
 import { CreateBulkQuestionsDto } from './dto/bulk-quiz-questions.dto';
@@ -22,6 +23,7 @@ import {
   CreateInterestDto,
   UpdateInterestDto,
 } from './dto/create-interest.dto';
+import { CreateTaskDto, UpdateTaskDto } from './dto/create-task.dto';
 
 @Injectable()
 export class AdminService {
@@ -36,6 +38,7 @@ export class AdminService {
     @InjectModel(Lesson.name) private lessonModel: Model<Lesson>,
     @InjectModel(QuizQuestion.name)
     private quizQuestionModel: Model<QuizQuestion>,
+    @InjectModel(Task.name) private taskModel: Model<Task>,
     @InjectModel(Interest.name) private interestModel: Model<Interest>,
   ) {}
 
@@ -297,5 +300,37 @@ export class AdminService {
     }
 
     return { message: 'Interest deleted successfully' };
+  }
+
+  // ========== TASK METHODS ==========
+  async createTask(createTaskDto: CreateTaskDto) {
+    const task = new this.taskModel(createTaskDto);
+    return task.save();
+  }
+
+  async updateTask(id: string, updateData: UpdateTaskDto) {
+    const updatedTask = await this.taskModel.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
+    if (!updatedTask) {
+      throw new NotFoundException('Task not found');
+    }
+    return updatedTask;
+  }
+
+  async deleteTask(id: string) {
+    const deletedTask = await this.taskModel.findByIdAndDelete(id);
+    if (!deletedTask) {
+      throw new NotFoundException('Task not found');
+    }
+    return { message: 'Task deleted successfully' };
+  }
+
+  async getTasksInLesson(lessonId: string) {
+    const lesson = await this.lessonModel.findById(lessonId);
+    if (!lesson) {
+      throw new NotFoundException('Lesson not found');
+    }
+    return this.taskModel.find({ lessonId }).sort({ order: 1 });
   }
 }
