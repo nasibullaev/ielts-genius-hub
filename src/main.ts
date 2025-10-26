@@ -5,6 +5,15 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
+// Suppress MongoDB MetadataLookupWarning
+process.removeAllListeners('warning');
+process.on('warning', (warning) => {
+  if (warning.name === 'MetadataLookupWarning') {
+    return; // Suppress this specific warning
+  }
+  console.warn(warning.name, warning.message);
+});
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
@@ -33,20 +42,21 @@ async function bootstrap() {
 
   app.enableCors({
     origin: [
-      process.env.CORS_ORIGIN || 'https://ielts-genius-hub.dead.uz',
-      'http://localhost:3000',
+      'https://ielts-genius-hub.dead.uz',
       'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:3001',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   });
 
   const config = new DocumentBuilder()
-    .setTitle('IELTS Genius Hub API')
+    .setTitle('WEB-IELTS API v1.0')
     .setDescription(
-      'Comprehensive API for IELTS Preparation Platform with courses, lessons, quizzes, user management, and admin features',
+      'Comprehensive API for WEB-IELTS Platform with courses, lessons, quizzes, user management, and admin features',
     )
-    .setVersion('2.0')
+    .setVersion('1.0')
     .addBearerAuth()
     .addTag('auth', 'Authentication endpoints')
     .addTag('users', 'User profile and interests management')

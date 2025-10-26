@@ -8,8 +8,6 @@ import { UsersModule } from './users/users.module';
 import { CoursesModule } from './courses/courses.module';
 import { LessonsModule } from './lessons/lessons.module';
 import { LevelCheckerModule } from './level-checker/level-checker.module';
-import { PaymentsService } from './payments/payments.service';
-import { PaymentsController } from './payments/payments.controller';
 import { AdminModule } from './admin/admin.module';
 import { PaymentsModule } from './payments/payments.module';
 
@@ -23,6 +21,8 @@ import { PaymentsModule } from './payments/payments.module';
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
         uri: configService.get<string>('MONGO_URI'),
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
       }),
     }),
     AuthModule,

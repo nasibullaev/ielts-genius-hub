@@ -35,24 +35,29 @@ export class CoursesService {
       // For visitors - return basic course info only (with dynamic totalLessons)
       const results = await Promise.all(
         courses.map(async (course) => {
-          const unitIds = (
-            await this.unitModel
-              .find({ courseId: course._id })
-              .select('_id')
-              .lean()
-          ).map((u) => u._id);
+          const units = await this.unitModel
+            .find({ courseId: course._id.toString() })
+            .select('_id')
+            .lean();
+
+          const unitIds = units.map((u) => u._id.toString());
+
           const sectionIds = (
             await this.sectionModel
               .find({ unitId: { $in: unitIds } })
               .select('_id')
               .lean()
-          ).map((s) => s._id);
-          const totalLessonsCount = await this.lessonModel.countDocuments({
-            sectionId: { $in: sectionIds },
-          });
+          ).map((s) => s._id.toString());
+
+          const totalLessonsCount =
+            sectionIds.length > 0
+              ? await this.lessonModel.countDocuments({
+                  sectionId: { $in: sectionIds },
+                })
+              : 0;
 
           return {
-            _id: course._id,
+            _id: course._id.toString(),
             title: course.title,
             description: course.description,
             rating: course.rating,
@@ -73,19 +78,24 @@ export class CoursesService {
         // Dynamically compute total lessons for the course
         const unitIds = (
           await this.unitModel
-            .find({ courseId: course._id })
+            .find({ courseId: course._id.toString() })
             .select('_id')
             .lean()
-        ).map((u) => u._id);
+        ).map((u) => u._id.toString());
+
         const sectionIds = (
           await this.sectionModel
             .find({ unitId: { $in: unitIds } })
             .select('_id')
             .lean()
-        ).map((s) => s._id);
-        const totalLessonsCount = await this.lessonModel.countDocuments({
-          sectionId: { $in: sectionIds },
-        });
+        ).map((s) => s._id.toString());
+
+        const totalLessonsCount =
+          sectionIds.length > 0
+            ? await this.lessonModel.countDocuments({
+                sectionId: { $in: sectionIds },
+              })
+            : 0;
 
         const progress = await this.progressModel
           .findOne({
@@ -95,7 +105,14 @@ export class CoursesService {
           .lean();
 
         return {
-          ...course,
+          _id: course._id.toString(),
+          title: course.title,
+          description: course.description,
+          rating: course.rating,
+          duration: course.duration,
+          level: course.level,
+          picture: course.picture,
+          ratingCount: course.ratingCount,
           totalLessons: totalLessonsCount,
           progress: progress
             ? {
@@ -133,7 +150,7 @@ export class CoursesService {
       .lean()
       .exec();
 
-    const sectionIds = sections.map((section) => section._id);
+    const sectionIds = sections.map((section) => section._id.toString());
     const lessons = await this.lessonModel
       .find({ sectionId: { $in: sectionIds } })
       .sort({ order: 1 })
@@ -153,18 +170,36 @@ export class CoursesService {
       const unitSections = sections
         .filter((section) => section.unitId.toString() === unit._id.toString())
         .map((section) => ({
-          ...section,
-
+          _id: section._id.toString(),
+          unitId: section.unitId.toString(),
+          title: section.title,
+          order: section.order,
           lessons: isPaid
-            ? lessons.filter(
-                (lesson) =>
-                  lesson.sectionId.toString() === section._id.toString(),
-              )
+            ? lessons
+                .filter(
+                  (lesson) =>
+                    lesson.sectionId.toString() === section._id.toString(),
+                )
+                .map((lesson) => ({
+                  _id: lesson._id.toString(),
+                  sectionId: lesson.sectionId.toString(),
+                  title: lesson.title,
+                  description: lesson.description,
+                  order: lesson.order,
+                  type: lesson.type,
+                  videoUrl: lesson.videoUrl,
+                  textContent: lesson.textContent,
+                  fileUrl: lesson.fileUrl,
+                  fileName: lesson.fileName,
+                }))
             : undefined,
         }));
 
       return {
-        ...unit,
+        _id: unit._id.toString(),
+        courseId: unit.courseId.toString(),
+        title: unit.title,
+        order: unit.order,
         sections: unitSections,
       };
     });
@@ -172,7 +207,15 @@ export class CoursesService {
     const totalLessonsCount = lessons.length;
 
     const courseWithUnits = {
-      ...course,
+      _id: course._id.toString(),
+      title: course.title,
+      description: course.description,
+      level: course.level,
+      duration: course.duration,
+      rating: course.rating,
+      ratingCount: course.ratingCount,
+      totalRating: course.totalRating,
+      picture: course.picture,
       totalLessons: totalLessonsCount,
       units: unitsWithSections,
     };
@@ -187,7 +230,17 @@ export class CoursesService {
 
       return {
         ...courseWithUnits,
-        progress: progress || null,
+        progress: progress
+          ? {
+              _id: progress._id.toString(),
+              userId: progress.userId.toString(),
+              courseId: progress.courseId.toString(),
+              completedLessons: progress.completedLessons,
+              totalLessons: progress.totalLessons,
+              progressPercentage: progress.progressPercentage,
+              lastAccessed: progress.lastAccessed,
+            }
+          : null,
       };
     }
 
