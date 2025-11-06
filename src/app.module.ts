@@ -6,8 +6,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CoursesModule } from './courses/courses.module';
-import { LessonsModule } from './lessons/lessons.module';
-import { LevelCheckerModule } from './level-checker/level-checker.module';
+import { SectionsModule } from './courses/sections.module';
 import { AdminModule } from './admin/admin.module';
 import { PaymentsModule } from './payments/payments.module';
 
@@ -28,8 +27,7 @@ import { PaymentsModule } from './payments/payments.module';
     AuthModule,
     UsersModule,
     CoursesModule,
-    LessonsModule,
-    LevelCheckerModule,
+    SectionsModule,
     PaymentsModule,
     AdminModule,
   ],

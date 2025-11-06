@@ -63,22 +63,25 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('WEB-IELTS API v1.0')
     .setDescription(
-      'Comprehensive API for WEB-IELTS Platform with courses, lessons, quizzes, user management, and admin features',
+      'Comprehensive API for WEB-IELTS Platform with courses, sessions, tasks, quizzes, user management, and admin features',
     )
     .setVersion('1.0')
     .addBearerAuth()
     .addTag('auth', 'Authentication endpoints')
     .addTag('users', 'User profile and interests management')
     .addTag('courses', 'Course management and enrollment')
-    .addTag('lessons', 'Lesson content and quiz functionality')
+    .addTag('sections', 'Session (section) content and tasks')
     .addTag('admin', 'Administrative functions and content management')
     .addTag('payments', 'Payment processing and subscription management')
-    .addTag('level-checker', 'IELTS level assessment and evaluation')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
 
-  SwaggerModule.setup('api/docs', app, document);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true, // This will save the auth token to localStorage
+    },
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

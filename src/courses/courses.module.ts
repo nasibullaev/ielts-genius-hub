@@ -5,7 +5,7 @@ import { CoursesService } from './courses.service';
 import { Course, CourseSchema } from './schemas/course.schema';
 import { Unit, UnitSchema } from './schemas/unit.schema';
 import { Section, SectionSchema } from './schemas/section.schema';
-import { Lesson, LessonSchema } from '../lessons/schemas/lesson.schema';
+import { Task, TaskSchema } from '../lessons/schemas/task.schema';
 import {
   CourseRating,
   CourseRatingSchema,
@@ -15,7 +15,6 @@ import {
   UserProgressSchema,
 } from '../users/schemas/user-progress.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
-import { SectionsController } from './sections.controller';
 
 @Module({
   imports: [
@@ -23,13 +22,13 @@ import { SectionsController } from './sections.controller';
       { name: Course.name, schema: CourseSchema },
       { name: Unit.name, schema: UnitSchema },
       { name: Section.name, schema: SectionSchema },
-      { name: Lesson.name, schema: LessonSchema },
+      { name: Task.name, schema: TaskSchema },
       { name: CourseRating.name, schema: CourseRatingSchema },
       { name: UserProgress.name, schema: UserProgressSchema },
       { name: User.name, schema: UserSchema },
     ]),
   ],
-  controllers: [CoursesController, SectionsController],
+  controllers: [CoursesController],
   providers: [CoursesService],
   exports: [CoursesService],
 })

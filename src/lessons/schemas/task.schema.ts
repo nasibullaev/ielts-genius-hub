@@ -28,14 +28,14 @@ export type TaskDocument = Task & Document;
 
 @Schema({ timestamps: true })
 export class Task {
-  @Prop({ type: Types.ObjectId, ref: 'Lesson', required: true })
-  lessonId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Section', required: true })
+  sectionId: Types.ObjectId;
 
   @Prop({ required: true, enum: TaskType })
   type: TaskType;
 
   @Prop({ required: true })
-  order: number; // Task order in lesson
+  order: number; // Task order in section
 
   @Prop()
   title?: string;

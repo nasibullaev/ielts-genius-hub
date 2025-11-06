@@ -25,9 +25,11 @@ import {
 } from '../lessons/schemas/quiz-question.schema';
 import { Task, TaskSchema } from '../lessons/schemas/task.schema';
 import { Interest, InterestSchema } from './schemas/interest.schema';
+import { SectionsModule } from '../courses/sections.module';
 
 @Module({
   imports: [
+    SectionsModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: UserActivity.name, schema: UserActivitySchema },

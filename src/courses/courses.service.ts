@@ -8,7 +8,7 @@ import { Model, Types } from 'mongoose';
 import { Course } from './schemas/course.schema';
 import { Unit } from './schemas/unit.schema';
 import { Section } from './schemas/section.schema';
-import { Lesson } from '../lessons/schemas/lesson.schema';
+import { Task } from '../lessons/schemas/task.schema';
 import { CourseRating } from './schemas/course-rating.schema';
 import { UserProgress } from '../users/schemas/user-progress.schema';
 import { User } from '../users/schemas/user.schema';
@@ -21,7 +21,7 @@ export class CoursesService {
     @InjectModel(Course.name) private courseModel: Model<Course>,
     @InjectModel(Unit.name) private unitModel: Model<Unit>,
     @InjectModel(Section.name) private sectionModel: Model<Section>,
-    @InjectModel(Lesson.name) private lessonModel: Model<Lesson>,
+    @InjectModel(Task.name) private taskModel: Model<Task>,
     @InjectModel(CourseRating.name) private ratingModel: Model<CourseRating>,
     @InjectModel(UserProgress.name) private progressModel: Model<UserProgress>,
     @InjectModel(User.name) private userModel: Model<User>,
@@ -51,7 +51,7 @@ export class CoursesService {
 
           const totalLessonsCount =
             sectionIds.length > 0
-              ? await this.lessonModel.countDocuments({
+              ? await this.taskModel.countDocuments({
                   sectionId: { $in: sectionIds },
                 })
               : 0;
@@ -92,7 +92,7 @@ export class CoursesService {
 
         const totalLessonsCount =
           sectionIds.length > 0
-            ? await this.lessonModel.countDocuments({
+            ? await this.taskModel.countDocuments({
                 sectionId: { $in: sectionIds },
               })
             : 0;
@@ -151,11 +151,12 @@ export class CoursesService {
       .exec();
 
     const sectionIds = sections.map((section) => section._id.toString());
-    const lessons = await this.lessonModel
-      .find({ sectionId: { $in: sectionIds } })
-      .sort({ order: 1 })
-      .lean()
-      .exec();
+    const totalTasksCount =
+      sectionIds.length > 0
+        ? await this.taskModel.countDocuments({
+            sectionId: { $in: sectionIds },
+          })
+        : 0;
 
     let isPaid = false;
     if (userId) {
@@ -174,25 +175,8 @@ export class CoursesService {
           unitId: section.unitId.toString(),
           title: section.title,
           order: section.order,
-          lessons: isPaid
-            ? lessons
-                .filter(
-                  (lesson) =>
-                    lesson.sectionId.toString() === section._id.toString(),
-                )
-                .map((lesson) => ({
-                  _id: lesson._id.toString(),
-                  sectionId: lesson.sectionId.toString(),
-                  title: lesson.title,
-                  description: lesson.description,
-                  order: lesson.order,
-                  type: lesson.type,
-                  videoUrl: lesson.videoUrl,
-                  textContent: lesson.textContent,
-                  fileUrl: lesson.fileUrl,
-                  fileName: lesson.fileName,
-                }))
-            : undefined,
+          // lessons removed; tasks retrieved via GET /sections/:id
+          lessons: undefined,
         }));
 
       return {
@@ -204,7 +188,7 @@ export class CoursesService {
       };
     });
 
-    const totalLessonsCount = lessons.length;
+    const totalLessonsCount = totalTasksCount;
 
     const courseWithUnits = {
       _id: course._id.toString(),

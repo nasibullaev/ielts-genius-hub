@@ -9,6 +9,7 @@ import {
   IsUrl,
   IsObject,
 } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { TaskType } from '../../lessons/schemas/task.schema';
 
@@ -16,18 +17,19 @@ export class CreateTaskDto {
   @ApiProperty({ example: '64f8c1234567890abcdef789' })
   @IsString()
   @IsNotEmpty()
-  lessonId: string;
+  sectionId: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     enum: TaskType,
     example: TaskType.MULTIPLE_CHOICE,
   })
   @IsEnum(TaskType)
-  @IsNotEmpty()
-  type: TaskType;
+  @IsOptional()
+  type?: TaskType;
 
   @ApiProperty({ example: 1 })
   @IsNumber()
+  @Type(() => Number)
   order: number;
 
   @ApiPropertyOptional({ example: 'Reading Comprehension' })
@@ -156,6 +158,20 @@ export class CreateTaskDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Transform(({ value }) => {
+    // Accept: repeated fields (already array), JSON string, or single string
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (_) {
+        // not JSON, treat as single value
+      }
+      return [value];
+    }
+    return value;
+  })
   categories?: string[];
 
   @ApiPropertyOptional({
@@ -166,6 +182,16 @@ export class CreateTaskDto {
   })
   @IsOptional()
   @IsObject()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch (_) {
+        return value; // let validator fail with proper message
+      }
+    }
+    return value;
+  })
   correctMapping?: Record<string, string[]>;
 
   // Paraphrase fields

@@ -13,8 +13,7 @@ import { Course } from '../courses/schemas/course.schema';
 import { CourseRating } from '../courses/schemas/course-rating.schema';
 import { Unit } from '../courses/schemas/unit.schema';
 import { Section } from '../courses/schemas/section.schema';
-import { Lesson } from '../lessons/schemas/lesson.schema';
-import { QuizQuestion } from '../lessons/schemas/quiz-question.schema';
+// Lessons removed from admin endpoints
 import { Task } from '../lessons/schemas/task.schema';
 import { LevelCheck } from '../level-checker/schemas/level-check.schema';
 import { Interest } from './schemas/interest.schema';
@@ -33,11 +32,8 @@ export class AdminService {
     @InjectModel(Course.name) private courseModel: Model<Course>,
     @InjectModel(CourseRating.name) private ratingModel: Model<CourseRating>,
     @InjectModel(LevelCheck.name) private levelCheckModel: Model<LevelCheck>,
-    @InjectModel(Unit.name) private unitModel: Model<Unit>, // ✅ Add these
+    @InjectModel(Unit.name) private unitModel: Model<Unit>,
     @InjectModel(Section.name) private sectionModel: Model<Section>,
-    @InjectModel(Lesson.name) private lessonModel: Model<Lesson>,
-    @InjectModel(QuizQuestion.name)
-    private quizQuestionModel: Model<QuizQuestion>,
     @InjectModel(Task.name) private taskModel: Model<Task>,
     @InjectModel(Interest.name) private interestModel: Model<Interest>,
   ) {}
@@ -131,12 +127,23 @@ export class AdminService {
 
   // ========== SECTION METHODS ==========
   async createSection(createSectionDto) {
-    const section = new this.sectionModel(createSectionDto);
+    const section = new this.sectionModel({
+      ...createSectionDto,
+      sessionPlans: createSectionDto.sessionPlans ?? [],
+    });
     return section.save();
   }
 
   async updateSection(id: string, updateData) {
-    return this.sectionModel.findByIdAndUpdate(id, updateData, { new: true });
+    const updatePayload = { ...updateData };
+
+    if (updateData.sessionPlans !== undefined) {
+      updatePayload.sessionPlans = updateData.sessionPlans;
+    }
+
+    return this.sectionModel.findByIdAndUpdate(id, updatePayload, {
+      new: true,
+    });
   }
 
   async deleteSection(id: string) {
@@ -147,93 +154,7 @@ export class AdminService {
     return this.sectionModel.find({ unitId }).sort({ order: 1 });
   }
 
-  // ========== LESSON METHODS ==========
-  async createLesson(createLessonDto) {
-    const lesson = new this.lessonModel(createLessonDto);
-    return lesson.save();
-  }
-
-  async updateLesson(id: string, updateData) {
-    return this.lessonModel.findByIdAndUpdate(id, updateData, { new: true });
-  }
-
-  async deleteLesson(id: string) {
-    return this.lessonModel.findByIdAndDelete(id);
-  }
-
-  async getLessonsInSection(sectionId: string) {
-    return this.lessonModel.find({ sectionId }).sort({ order: 1 });
-  }
-
-  // ========== QUIZ QUESTION METHODS ==========
-  async addQuizQuestion(lessonId: string, questionDto) {
-    const question = new this.quizQuestionModel({
-      ...questionDto,
-      lessonId,
-    });
-    return question.save();
-  }
-  async addBulkQuizQuestions(
-    lessonId: string,
-    bulkQuestionsDto: CreateBulkQuestionsDto,
-  ) {
-    // Check if lesson exists and is a quiz
-    const lesson = await this.lessonModel.findById(lessonId);
-    if (!lesson) {
-      throw new NotFoundException('Lesson not found');
-    }
-    if (lesson.type !== 'Quiz') {
-      throw new BadRequestException(
-        'Can only add questions to Quiz type lessons',
-      );
-    }
-
-    // Get the current highest order number for this lesson
-    const lastQuestion = await this.quizQuestionModel
-      .findOne({ lessonId })
-      .sort({ order: -1 })
-      .select('order')
-      .lean();
-
-    const startingOrder = (lastQuestion?.order || 0) + 1;
-
-    // Prepare questions with correct lesson ID and sequential order
-    const questionsToCreate = bulkQuestionsDto.questions.map(
-      (questionData, index) => ({
-        ...questionData,
-        lessonId,
-        order: startingOrder + index, // Auto-increment order
-      }),
-    );
-
-    // Bulk insert all questions
-    const createdQuestions =
-      await this.quizQuestionModel.insertMany(questionsToCreate);
-
-    return {
-      message: `Created ${createdQuestions.length} questions successfully`,
-      createdCount: createdQuestions.length,
-      questions: createdQuestions.map((q) => ({
-        _id: q._id,
-        question: q.question,
-        order: q.order,
-      })),
-    };
-  }
-
-  async updateQuizQuestion(id: string, updateData) {
-    return this.quizQuestionModel.findByIdAndUpdate(id, updateData, {
-      new: true,
-    });
-  }
-
-  async deleteQuizQuestion(id: string) {
-    return this.quizQuestionModel.findByIdAndDelete(id);
-  }
-
-  async getQuizQuestions(lessonId: string) {
-    return this.quizQuestionModel.find({ lessonId }).sort({ order: 1 });
-  }
+  // Lesson and quiz question methods removed
 
   // ========== INTEREST METHODS ==========
   async createInterest(createInterestDto, iconUrl: string) {
@@ -326,11 +247,11 @@ export class AdminService {
     return { message: 'Task deleted successfully' };
   }
 
-  async getTasksInLesson(lessonId: string) {
-    const lesson = await this.lessonModel.findById(lessonId);
-    if (!lesson) {
-      throw new NotFoundException('Lesson not found');
+  async getTasksInSection(sectionId: string) {
+    const section = await this.sectionModel.findById(sectionId);
+    if (!section) {
+      throw new NotFoundException('Section not found');
     }
-    return this.taskModel.find({ lessonId }).sort({ order: 1 });
+    return this.taskModel.find({ sectionId }).sort({ order: 1 });
   }
 }

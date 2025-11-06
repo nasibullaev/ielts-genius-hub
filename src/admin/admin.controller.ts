@@ -12,6 +12,9 @@ import {
   UploadedFile,
   UploadedFiles,
   BadRequestException,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -33,18 +36,38 @@ import { AdminGuard } from '../auth/admin.guard';
 import { AdminService } from './admin.service';
 import { CreateUnitDto, UpdateUnitDto } from './dto/create-unit.dto';
 import { CreateSectionDto, UpdateSectionDto } from './dto/create-section.dto';
-import { CreateLessonDto, UpdateLessonDto } from './dto/create-lesson.dto';
-import {
-  CreateQuizQuestionDto,
-  UpdateQuizQuestionDto,
-} from './dto/create-quiz-question.dto';
-import { CreateBulkQuestionsDto } from './dto/bulk-quiz-questions.dto';
 import {
   CreateInterestDto,
   UpdateInterestDto,
 } from './dto/create-interest.dto';
 import { CreateTaskDto, UpdateTaskDto } from './dto/create-task.dto';
 import { TaskType } from '../lessons/schemas/task.schema';
+import { Express } from 'express';
+
+class ParseSectionPayloadInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler) {
+    const request = context.switchToHttp().getRequest();
+    const body = request?.body;
+
+    if (body) {
+      try {
+        if (typeof body.sessionPlans === 'string') {
+          body.sessionPlans = JSON.parse(body.sessionPlans);
+        }
+        if (typeof body.presentation === 'string') {
+          body.presentation = JSON.parse(body.presentation);
+        }
+        if (typeof body.quickTips === 'string') {
+          body.quickTips = JSON.parse(body.quickTips);
+        }
+      } catch (error) {
+        throw new BadRequestException('Invalid JSON format in section payload');
+      }
+    }
+
+    return next.handle();
+  }
+}
 
 export class DashboardStatsDto {
   @ApiProperty({ example: 1250 })
@@ -140,20 +163,202 @@ export class AdminController {
 
   @Post('sections')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseInterceptors(FileInterceptor('image'), ParseSectionPayloadInterceptor)
   @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Section creation payload with optional image upload',
+    schema: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          example: 'Speaking Part 1 - Personal Questions',
+        },
+        description: {
+          type: 'string',
+          example: 'Learn how to answer personal questions with confidence.',
+        },
+        unitId: { type: 'string', example: '64f8b1234567890abcdef456' },
+        order: { type: 'number', example: 1 },
+        image: {
+          type: 'string',
+          format: 'binary',
+          description: 'Section cover image',
+        },
+        sessionPlans: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['Understand question types', 'Practice sample answers'],
+          description: 'Add each learning outcome as a separate field',
+        },
+        presentation: {
+          type: 'string',
+          example:
+            '{"title":"Key Speaking Strategies","cards":["Listen and respond naturally","Structure answers clearly"]}',
+          description: 'JSON object string for presentation section',
+        },
+        quickTips: {
+          type: 'string',
+          example:
+            '{"cards":["Practice aloud every day","Record and review progress","Use timers to simulate exam conditions","Reflect on strengths and weaknesses"]}',
+          description: 'JSON object string for quick tips',
+        },
+      },
+      required: ['title', 'description', 'unitId', 'order'],
+    },
+    examples: {
+      formData: {
+        summary: 'multipart/form-data example',
+        value: {
+          title: 'Speaking Part 1 - Personal Questions',
+          description:
+            'Learn how to answer personal questions with confidence.',
+          unitId: '64f8b1234567890abcdef456',
+          order: 1,
+          sessionPlans: [
+            'Understand question types',
+            'Practice sample answers',
+          ],
+          presentation:
+            '{"title":"Key Speaking Strategies","cards":["Listen and respond naturally","Structure answers clearly"]}',
+          quickTips:
+            '{"cards":["Practice aloud every day","Record and review progress"]}',
+        },
+      },
+    },
+  })
   @ApiOperation({ summary: 'Create section in unit' })
-  async createSection(@Body() createSectionDto: CreateSectionDto) {
+  async createSection(
+    @UploadedFile() image: Express.Multer.File,
+    @Body() createSectionDto: CreateSectionDto,
+  ) {
+    try {
+      // sessionPlans
+      if (
+        typeof createSectionDto.sessionPlans === 'string' &&
+        createSectionDto.sessionPlans !== ''
+      ) {
+        createSectionDto.sessionPlans = JSON.parse(
+          createSectionDto.sessionPlans,
+        );
+      }
+
+      // presentation
+      if (
+        typeof createSectionDto.presentation === 'string' &&
+        createSectionDto.presentation !== ''
+      ) {
+        createSectionDto.presentation = JSON.parse(
+          createSectionDto.presentation,
+        );
+      }
+
+      // quickTips
+      if (
+        typeof createSectionDto.quickTips === 'string' &&
+        createSectionDto.quickTips !== ''
+      ) {
+        createSectionDto.quickTips = JSON.parse(createSectionDto.quickTips);
+      }
+    } catch (error) {
+      throw new BadRequestException('Invalid JSON format in section payload');
+    }
+
+    if (image) {
+      createSectionDto.image = `/uploads/sections/${image.filename}`;
+    }
+
     return this.adminService.createSection(createSectionDto);
   }
 
   @Put('sections/:id')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseInterceptors(FileInterceptor('image'), ParseSectionPayloadInterceptor)
   @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Section update payload with optional image upload',
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', example: 'Updated Speaking Part 1' },
+        description: {
+          type: 'string',
+          example: 'Refined guidance for personal questions',
+        },
+        order: { type: 'number', example: 2 },
+        image: {
+          type: 'string',
+          format: 'binary',
+          description: 'New section cover image',
+        },
+        sessionPlans: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['Revise warm-up prompts', 'Drill follow-up strategies'],
+          description: 'Add each learning outcome as a separate field',
+        },
+        presentation: {
+          type: 'string',
+          example:
+            '{"title":"Refreshed Strategies","cards":["Clarify question intent quickly","Use linking phrases effectively"]}',
+          description: 'JSON object string for presentation section',
+        },
+        quickTips: {
+          type: 'string',
+          example:
+            '{"cards":["Time yourself","Review recordings each week","Practice mock interviews","Track progress weekly"]}',
+          description: 'JSON object string for quick tips',
+        },
+      },
+    },
+    examples: {
+      formData: {
+        summary: 'multipart/form-data example',
+        value: {
+          title: 'Updated Speaking Part 1',
+          order: 2,
+          sessionPlans: [
+            'Revise warm-up prompts',
+            'Drill follow-up strategies',
+          ],
+          presentation:
+            '{"title":"Refreshed Strategies","cards":["Clarify question intent quickly","Use linking phrases effectively"]}',
+          quickTips:
+            '{"cards":["Time yourself","Review recordings each week"]}',
+        },
+      },
+    },
+  })
   @ApiOperation({ summary: 'Update section' })
   async updateSection(
     @Param('id') id: string,
+    @UploadedFile() image: Express.Multer.File,
     @Body() updateSectionDto: UpdateSectionDto,
   ) {
+    try {
+      if (typeof updateSectionDto.sessionPlans === 'string') {
+        updateSectionDto.sessionPlans = JSON.parse(
+          updateSectionDto.sessionPlans,
+        );
+      }
+      if (typeof updateSectionDto.presentation === 'string') {
+        updateSectionDto.presentation = JSON.parse(
+          updateSectionDto.presentation,
+        );
+      }
+      if (typeof updateSectionDto.quickTips === 'string') {
+        updateSectionDto.quickTips = JSON.parse(updateSectionDto.quickTips);
+      }
+    } catch (error) {
+      throw new BadRequestException('Invalid JSON format in section payload');
+    }
+
+    if (image) {
+      updateSectionDto.image = `/uploads/sections/${image.filename}`;
+    }
+
     return this.adminService.updateSection(id, updateSectionDto);
   }
 
@@ -173,119 +378,7 @@ export class AdminController {
     return this.adminService.getSectionsInUnit(unitId);
   }
 
-  @Post('lessons')
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create lesson in section' })
-  async createLesson(@Body() createLessonDto: CreateLessonDto) {
-    return this.adminService.createLesson(createLessonDto);
-  }
-
-  @Put('lessons/:id')
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update lesson' })
-  async updateLesson(
-    @Param('id') id: string,
-    @Body() updateLessonDto: UpdateLessonDto,
-  ) {
-    return this.adminService.updateLesson(id, updateLessonDto);
-  }
-
-  @Delete('lessons/:id')
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete lesson' })
-  async deleteLesson(@Param('id') id: string) {
-    return this.adminService.deleteLesson(id);
-  }
-
-  @Get('sections/:sectionId/lessons')
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all lessons in a section' })
-  async getLessonsInSection(@Param('sectionId') sectionId: string) {
-    return this.adminService.getLessonsInSection(sectionId);
-  }
-
-  @Post('lessons/:lessonId/questions')
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Add question to quiz lesson' })
-  async addQuizQuestion(
-    @Param('lessonId') lessonId: string,
-    @Body() questionDto: CreateQuizQuestionDto,
-  ) {
-    return this.adminService.addQuizQuestion(lessonId, questionDto);
-  }
-  @Post('lessons/:lessonId/questions/bulk')
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Add multiple questions to quiz lesson at once',
-    description:
-      'Bulk create up to 50 questions for a quiz lesson. Automatically handles order numbering.',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Questions created successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-          example: 'Created 5 questions successfully',
-        },
-        createdCount: { type: 'number', example: 5 },
-        questions: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              _id: { type: 'string' },
-              question: { type: 'string' },
-              order: { type: 'number' },
-            },
-          },
-        },
-      },
-    },
-  })
-  @ApiResponse({ status: 400, description: 'Validation error' })
-  @ApiResponse({ status: 404, description: 'Lesson not found' })
-  async addBulkQuizQuestions(
-    @Param('lessonId') lessonId: string,
-    @Body() bulkQuestionsDto: CreateBulkQuestionsDto,
-  ) {
-    return this.adminService.addBulkQuizQuestions(lessonId, bulkQuestionsDto);
-  }
-
-  @Put('questions/:id')
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update quiz question' })
-  async updateQuizQuestion(
-    @Param('id') id: string,
-    @Body() questionDto: UpdateQuizQuestionDto,
-  ) {
-    return this.adminService.updateQuizQuestion(id, questionDto);
-  }
-
-  @Delete('questions/:id')
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete quiz question' })
-  async deleteQuizQuestion(@Param('id') id: string) {
-    return this.adminService.deleteQuizQuestion(id);
-  }
-
-  @Get('lessons/:lessonId/questions')
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all questions in quiz lesson' })
-  async getQuizQuestions(@Param('lessonId') lessonId: string) {
-    return this.adminService.getQuizQuestions(lessonId);
-  }
+  // Admin: lesson endpoints removed
 
   // ========== INTEREST MANAGEMENT ==========
   @Post('interests')
@@ -459,14 +552,14 @@ export class AdminController {
     description: 'Lead-in task data - Warm-up activity or discussion prompt',
     schema: {
       type: 'object',
-      required: ['lessonId', 'order'],
+      required: ['sectionId', 'order'],
       properties: {
         files: {
           type: 'array',
           items: { type: 'string', format: 'binary' },
           description: 'Optional image files (JPEG, PNG, WebP, max 5MB)',
         },
-        lessonId: { type: 'string', example: '64f8c1234567890abcdef789' },
+        sectionId: { type: 'string', example: '64f8c1234567890abcdef789' },
         order: { type: 'number', example: 1 },
         title: { type: 'string', example: 'Warm-up Discussion' },
         description: {
@@ -488,7 +581,7 @@ export class AdminController {
   ) {
     const { files: _files, ...taskData } = body;
     const createTaskDto: CreateTaskDto = {
-      lessonId: taskData.lessonId,
+      sectionId: taskData.sectionId,
       type: TaskType.LEAD_IN,
       order: parseInt(taskData.order),
       title: taskData.title,
@@ -531,14 +624,14 @@ export class AdminController {
     description: 'Listening MCQ task data - Play audio and choose answer',
     schema: {
       type: 'object',
-      required: ['lessonId', 'order', 'options', 'correctOptionIndex'],
+      required: ['sectionId', 'order', 'options', 'correctOptionIndex'],
       properties: {
         files: {
           type: 'array',
           items: { type: 'string', format: 'binary' },
           description: 'Audio file (MP3, WAV, OGG, WebM, max 10MB)',
         },
-        lessonId: { type: 'string', example: '64f8c1234567890abcdef789' },
+        sectionId: { type: 'string', example: '64f8c1234567890abcdef789' },
         order: { type: 'number', example: 1 },
         title: { type: 'string', example: 'Listen and Answer' },
         description: {
@@ -562,7 +655,7 @@ export class AdminController {
   ) {
     const { files: _files, ...taskData } = body;
     const createTaskDto: CreateTaskDto = {
-      lessonId: taskData.lessonId,
+      sectionId: taskData.sectionId,
       type: TaskType.LISTENING_MCQ,
       order: parseInt(taskData.order),
       title: taskData.title,
@@ -588,9 +681,9 @@ export class AdminController {
     description: 'Display question; learner records answer',
     schema: {
       type: 'object',
-      required: ['lessonId', 'order', 'promptText'],
+      required: ['sectionId', 'order', 'promptText'],
       properties: {
-        lessonId: { type: 'string' },
+        sectionId: { type: 'string' },
         order: { type: 'number' },
         title: { type: 'string' },
         description: { type: 'string' },
@@ -615,9 +708,9 @@ export class AdminController {
     description: 'Match phrases, words, or meanings',
     schema: {
       type: 'object',
-      required: ['lessonId', 'order', 'pairs', 'correctPairs'],
+      required: ['sectionId', 'order', 'pairs', 'correctPairs'],
       properties: {
-        lessonId: { type: 'string' },
+        sectionId: { type: 'string' },
         order: { type: 'number' },
         title: { type: 'string' },
         description: { type: 'string' },
@@ -656,9 +749,9 @@ export class AdminController {
     description: 'Rank items by frequency, importance, etc.',
     schema: {
       type: 'object',
-      required: ['lessonId', 'order', 'items', 'correctOrder'],
+      required: ['sectionId', 'order', 'items', 'correctOrder'],
       properties: {
-        lessonId: { type: 'string' },
+        sectionId: { type: 'string' },
         order: { type: 'number' },
         title: { type: 'string' },
         description: { type: 'string' },
@@ -683,14 +776,14 @@ export class AdminController {
     schema: {
       type: 'object',
       required: [
-        'lessonId',
+        'sectionId',
         'order',
         'textTemplate',
         'wordBank',
         'correctAnswers',
       ],
       properties: {
-        lessonId: { type: 'string' },
+        sectionId: { type: 'string' },
         order: { type: 'number' },
         title: { type: 'string' },
         description: { type: 'string' },
@@ -721,9 +814,9 @@ export class AdminController {
     description: 'Choose one or more correct answers',
     schema: {
       type: 'object',
-      required: ['lessonId', 'order', 'options', 'correctOptionIndices'],
+      required: ['sectionId', 'order', 'options', 'correctOptionIndices'],
       properties: {
-        lessonId: { type: 'string' },
+        sectionId: { type: 'string' },
         order: { type: 'number' },
         title: { type: 'string' },
         description: { type: 'string' },
@@ -750,9 +843,9 @@ export class AdminController {
     description: 'Mark statements as true or false',
     schema: {
       type: 'object',
-      required: ['lessonId', 'order', 'statements', 'correctFlags'],
+      required: ['sectionId', 'order', 'statements', 'correctFlags'],
       properties: {
-        lessonId: { type: 'string' },
+        sectionId: { type: 'string' },
         order: { type: 'number' },
         title: { type: 'string' },
         description: { type: 'string' },
@@ -777,14 +870,14 @@ export class AdminController {
     schema: {
       type: 'object',
       required: [
-        'lessonId',
+        'sectionId',
         'order',
         'textTemplate',
         'wordBank',
         'correctAnswers',
       ],
       properties: {
-        lessonId: { type: 'string' },
+        sectionId: { type: 'string' },
         order: { type: 'number' },
         title: { type: 'string' },
         description: { type: 'string' },
@@ -807,6 +900,7 @@ export class AdminController {
 
   // Drag-Drop Task
   @Post('tasks/drag-drop')
+  @UseInterceptors(FilesInterceptor('files', 0))
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
@@ -815,9 +909,9 @@ export class AdminController {
     description: 'Drag items into categories',
     schema: {
       type: 'object',
-      required: ['lessonId', 'order', 'categories', 'correctMapping'],
+      required: ['sectionId', 'order', 'categories', 'correctMapping'],
       properties: {
-        lessonId: { type: 'string' },
+        sectionId: { type: 'string' },
         order: { type: 'number' },
         title: { type: 'string' },
         description: { type: 'string' },
@@ -844,9 +938,9 @@ export class AdminController {
     description: 'Rewrite sentence in another way',
     schema: {
       type: 'object',
-      required: ['lessonId', 'order', 'baseSentence'],
+      required: ['sectionId', 'order', 'baseSentence'],
       properties: {
-        lessonId: { type: 'string' },
+        sectionId: { type: 'string' },
         order: { type: 'number' },
         title: { type: 'string' },
         description: { type: 'string' },
@@ -870,9 +964,9 @@ export class AdminController {
     description: 'Reorder phrases into correct sequence',
     schema: {
       type: 'object',
-      required: ['lessonId', 'order', 'segments', 'correctOrder'],
+      required: ['sectionId', 'order', 'segments', 'correctOrder'],
       properties: {
-        lessonId: { type: 'string' },
+        sectionId: { type: 'string' },
         order: { type: 'number' },
         title: { type: 'string' },
         description: { type: 'string' },
@@ -899,9 +993,9 @@ export class AdminController {
     description: 'Show topic card for 1–2 minute response',
     schema: {
       type: 'object',
-      required: ['lessonId', 'order', 'cueCardText'],
+      required: ['sectionId', 'order', 'cueCardText'],
       properties: {
-        lessonId: { type: 'string' },
+        sectionId: { type: 'string' },
         order: { type: 'number' },
         title: { type: 'string' },
         description: { type: 'string' },
@@ -929,9 +1023,9 @@ export class AdminController {
     description: 'Display abstract question for extended answer',
     schema: {
       type: 'object',
-      required: ['lessonId', 'order', 'questionText'],
+      required: ['sectionId', 'order', 'questionText'],
       properties: {
-        lessonId: { type: 'string' },
+        sectionId: { type: 'string' },
         order: { type: 'number' },
         title: { type: 'string' },
         description: { type: 'string' },
@@ -974,7 +1068,7 @@ export class AdminController {
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
-    summary: 'Create task in lesson with optional file uploads',
+    summary: 'Create task in session (section) with optional file uploads',
     description:
       'Create a task with support for image and audio file uploads. Upload up to 3 files (images or audio). Files are automatically stored and URLs are assigned to appropriate fields.',
   })
@@ -984,7 +1078,7 @@ export class AdminController {
     required: true,
     schema: {
       type: 'object',
-      required: ['lessonId', 'type', 'order'],
+      required: ['sectionId', 'type', 'order'],
       properties: {
         files: {
           type: 'array',
@@ -995,9 +1089,9 @@ export class AdminController {
             format: 'binary',
           },
         },
-        lessonId: {
+        sectionId: {
           type: 'string',
-          description: 'Lesson ID where task belongs',
+          description: 'Section (session) ID where task belongs',
           example: '64f8c1234567890abcdef789',
         },
         type: {
@@ -1023,7 +1117,7 @@ export class AdminController {
         },
         order: {
           type: 'number',
-          description: 'Display order in lesson',
+          description: 'Display order in section',
           example: 1,
         },
         title: {
@@ -1210,7 +1304,7 @@ export class AdminController {
       type: 'object',
       properties: {
         _id: { type: 'string', example: '64f8a1234567890abcdef123' },
-        lessonId: { type: 'string' },
+        sectionId: { type: 'string' },
         type: { type: 'string', example: 'Listening (Audio + MCQ)' },
         order: { type: 'number', example: 1 },
         audioUrl: {
@@ -1235,7 +1329,7 @@ export class AdminController {
     const { files: _files, ...taskData } = body;
 
     const createTaskDto: CreateTaskDto = {
-      lessonId: taskData.lessonId,
+      sectionId: taskData.sectionId,
       type: taskData.type as TaskType,
       order: parseInt(taskData.order),
       title: taskData.title,
@@ -1294,13 +1388,13 @@ export class AdminController {
     return this.adminService.createTask(createTaskDto);
   }
 
-  @Get('lessons/:lessonId/tasks')
+  @Get('sections/:sectionId/tasks')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Get all tasks in a lesson',
+    summary: 'Get all tasks in a section',
     description:
-      'Retrieve all tasks for a lesson, including correct answers. Admin only.',
+      'Retrieve all tasks for a section, including correct answers. Admin only.',
   })
   @ApiResponse({
     status: 200,
@@ -1311,7 +1405,7 @@ export class AdminController {
         type: 'object',
         properties: {
           _id: { type: 'string', example: '64f8a1234567890abcdef123' },
-          lessonId: { type: 'string' },
+          sectionId: { type: 'string' },
           type: {
             type: 'string',
             example: 'Multiple Choice (Reading)',
@@ -1347,10 +1441,10 @@ export class AdminController {
       },
     },
   })
-  @ApiResponse({ status: 404, description: 'Lesson not found' })
+  @ApiResponse({ status: 404, description: 'Section not found' })
   @ApiResponse({ status: 403, description: 'Admin access required' })
-  async getTasksInLesson(@Param('lessonId') lessonId: string) {
-    return this.adminService.getTasksInLesson(lessonId);
+  async getTasksInLesson(@Param('sectionId') sectionId: string) {
+    return this.adminService.getTasksInSection(sectionId);
   }
 
   @Put('tasks/:id')
@@ -1432,7 +1526,7 @@ Common fields: title, description, type, order`,
       type: 'object',
       properties: {
         _id: { type: 'string', example: '64f8a1234567890abcdef123' },
-        lessonId: { type: 'string' },
+        sectionId: { type: 'string' },
         type: { type: 'string' },
         order: { type: 'number' },
         title: { type: 'string' },
@@ -1491,7 +1585,7 @@ Common fields: title, description, type, order`,
   @ApiOperation({
     summary: 'Delete task',
     description:
-      'Permanently delete a task from a lesson. This action cannot be undone.',
+      'Permanently delete a task from a section. This action cannot be undone.',
   })
   @ApiResponse({
     status: 200,
